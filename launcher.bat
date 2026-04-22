@@ -2,13 +2,16 @@
 echo [CareVL] Kiem tra ket noi...
 ping -n 1 github.com >nul 2>&1
 if errorlevel 1 (
-    echo [CareVL] Offline -- bo qua cap nhat, chay phien ban hien tai.
+    echo [CareVL] Offline -- chay phien ban hien tai.
     goto launch
 )
-echo [CareVL] Dang cap nhat...
+echo [CareVL] Dang cap nhat tu GitHub...
+git fetch origin
+git stash
 git pull origin main
+git stash pop
 if errorlevel 1 (
-    echo [CareVL] Cap nhat that bai. Kiem tra lai Git hoac lien he HQ.
+    echo [CareVL] Cap nhat that bai. Kiem tra lai Git.
     pause
     goto launch
 )
