@@ -6,11 +6,18 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from modules import paths
+from modules import config_loader
 
 SYNCED = "synced"
 PENDING_PUSH = "pending_push"
 OFFLINE = "offline"
 DEFAULT_TIMEOUT_SECONDS = 30
+
+
+def get_data_repo() -> str:
+    """Returns the data repository in format 'org/repo'"""
+    config = config_loader.load_app_config()
+    return config.get("data_repo", "DigitalVersion/vinhlong-health-record")
 
 
 def _resolve_project_root(project_root: Optional[str] = None) -> Path:

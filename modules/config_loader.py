@@ -41,3 +41,25 @@ def load_template_form() -> Dict[str, Any]:
         raise Exception(
             f"Lỗi không xác định khi tải cấu hình: {str(e)}"
         )
+
+
+def load_app_config() -> Dict[str, Any]:
+    """
+    Loads application configuration including data repository settings.
+    Priority: config/app_config.json > bundled
+    """
+    writable_path = paths.get_writable_path(os.path.join("config", "app_config.json"))
+    internal_path = paths.get_resource_path(os.path.join("config", "app_config.json"))
+    
+    if os.path.exists(writable_path):
+        target_path = writable_path
+    elif os.path.exists(internal_path):
+        target_path = internal_path
+    else:
+        return {"data_repo": "DigitalVersion/vinhlong-health-record", "org": "DigitalVersion"}
+    
+    try:
+        with open(target_path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return {"data_repo": "DigitalVersion/vinhlong-health-record", "org": "DigitalVersion"}

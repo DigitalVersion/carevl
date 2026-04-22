@@ -2,7 +2,34 @@
 
 Ứng dụng desktop quản lý hồ sơ khám sức khỏe định kỳ miễn phí cho người dân tỉnh Vĩnh Long, giai đoạn 2026–2030.
 
-## Tính năng chính
+---
+
+## Bức tranh lớn
+
+**Vấn đề:**
+- Tỉnh Vĩnh Long có ~100 trạm y tế xã/phường
+- Mỗi năm khám sức khỏe định kỳ cho hàng trăm ngàn người dân
+- Nhân viên y tế làm việc ngoài thực địa, thường xuyên offline
+- HQ (Trụ sở tỉnh) cần tổng hợp dữ liệu từ các trạm
+
+**Giải pháp CareVL:**
+- App offline-first chạy trên laptop nhân viên
+- Đồng bộ qua GitHub khi có mạng
+- Mỗi nhân viên push vào branch riêng `user/{username}`
+- HQ merge từ tất cả branches để tổng hợp
+
+---
+
+## Hai Repo
+
+| Repo | Mục đích | Link | Quyền |
+|------|----------|------|-------|
+| Software | Phần mềm + exe | https://github.com/kanazawahere/carevl | Public - ai cũng tải được |
+| Data | Dữ liệu hồ sơ | https://github.com/DigitalVersion/vinhlong-health-record | Private - chỉ nhân viên |
+
+---
+
+## Cài đặt (Người dùng)
 
 - ✅ **Offline-first**: Hoạt động hoàn toàn không cần mạng
 - ✅ **Đồng bộ Git**: Tự động đồng bộ dữ liệu qua GitHub khi có mạng
@@ -19,12 +46,48 @@
 
 ## Cài đặt (Người dùng)
 
-1. Tải về `carevl.exe`, `launcher.bat`, và thư mục `config/`
-2. Đặt tất cả vào cùng một thư mục
-3. Chạy `launcher.bat` để khởi động
-4. Đăng nhập bằng GitHub lần đầu tiên
+### Bước 1: Clone repo dữ liệu
+```bash
+git clone https://github.com/DigitalVersion/vinhlong-health-record.git carevl-data
+cd carevl-data
+```
 
-## Phát triển
+### Bước 2: Tải executable
+Vào https://github.com/kanazawahere/carevl/releases
+Tải file `carevl.exe` mới nhất, đặt vào thư mục `carevl-data/`
+
+### Bước 3: Chạy
+Double-click `carevl.exe` hoặc chạy `launcher.bat`
+
+### Bước 4: Đăng nhập
+Đăng nhập bằng tài khoản GitHub của nhân viên (đã được mời vào org DigitalVersion)
+
+### Bước 5: Mời nhân viên (Admin/Leader)
+1. Vào https://github.com/orgs/DigitalVersion/people
+2. Invite member → nhập email hoặc username GitHub của nhân viên
+3. Nhân viên accept lời mời qua email
+
+---
+
+## Cách hoạt động
+
+### Luồng dữ liệu
+```
+[Trạm 1] → Clone repo → Tạo hồ sơ → Commit → Push → branch: user/nhan-vien-1
+[Trạm 2] → Clone repo → Tạo hồ sơ → Commit → Push → branch: user/nhan-vien-2
+[Trạm 3] → Clone repo → Tạo hồ sơ → Commit → Push → branch: user/nhan-vien-3
+                          ↓
+              [HQ merge] → Xem dữ liệu từ tất cả các trạm
+```
+
+### Merge cho HQ
+1. Vào https://github.com/DigitalVersion/vinhlong-health-record
+2. Click **Compare** → Chọn `main` vs `user/ten-nhan-vien`
+3. Xem thay đổi → **Create Pull Request** → **Merge PR**
+
+---
+
+## Tính năng chính
 
 ### Setup môi trường
 
