@@ -1,1 +1,8 @@
-{}
+{
+  "mphat10": {
+    "approved": true,
+    "branch_name": "user/mphat10",
+    "role": "edge",
+    "title": "Tram test"
+  }
+}

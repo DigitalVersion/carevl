@@ -3,9 +3,10 @@ from __future__ import annotations
 import json
 import ssl
 import webbrowser
+import re
 from pathlib import Path
 from typing import Any, Dict, Optional
-from urllib.parse import quote, urlencode
+from urllib.parse import quote, urlencode, urlparse
 from urllib.request import Request, urlopen
 
 from modules import auth
@@ -257,6 +258,181 @@ def _github_api_post(url: str, token: str, payload: Dict[str, Any]) -> Dict[str,
         return {"error": str(exc)}
 
 
+def _github_api_get(url: str, token: Optional[str] = None) -> Dict[str, Any] | list[Any]:
+    try:
+        req = Request(url, method="GET")
+        if token:
+            req.add_header("Authorization", f"Bearer {token}")
+        req.add_header("Accept", "application/vnd.github+json")
+        req.add_header("X-GitHub-Api-Version", "2022-11-28")
+        with urlopen(req, timeout=DEFAULT_TIMEOUT_SECONDS, context=_build_ssl_context()) as response:
+            return json.loads(response.read().decode("utf-8"))
+    except Exception as exc:
+        return {"error": str(exc)}
+
+
+def _github_api_patch(url: str, token: str, payload: Dict[str, Any]) -> Dict[str, Any]:
+    try:
+        body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+        req = Request(url, data=body, method="PATCH")
+        req.add_header("Authorization", f"Bearer {token}")
+        req.add_header("Accept", "application/vnd.github+json")
+        req.add_header("X-GitHub-Api-Version", "2022-11-28")
+        req.add_header("Content-Type", "application/json")
+        with urlopen(req, timeout=DEFAULT_TIMEOUT_SECONDS, context=_build_ssl_context()) as response:
+            return json.loads(response.read().decode("utf-8"))
+    except Exception as exc:
+        return {"error": str(exc)}
+
+
+def parse_join_request_text(text: str, *, title: str = "") -> Dict[str, str]:
+    raw_text = str(text or "")
+    raw_title = str(title or "")
+    data: Dict[str, str] = {}
+
+    title_match = re.search(r"\[Join Request\]\s*([A-Za-z0-9_.-]+)", raw_title, re.IGNORECASE)
+    if title_match:
+        data["username"] = title_match.group(1).strip()
+
+    body_patterns = {
+        "username": [
+            r"GitHub username:\s*`?([A-Za-z0-9_.-]+)`?",
+            r"username:\s*`?([A-Za-z0-9_.-]+)`?",
+        ],
+        "title": [
+            r"Đơn vị\s*/\s*trạm:\s*(.+)",
+            r"Don vi\s*/\s*tram:\s*(.+)",
+        ],
+        "full_name": [
+            r"Họ và tên:\s*(.+)",
+            r"Ho va ten:\s*(.+)",
+        ],
+        "phone": [
+            r"Số điện thoại:\s*(.+)",
+            r"So dien thoai:\s*(.+)",
+        ],
+    }
+    for key, pattern_list in body_patterns.items():
+        for pattern in pattern_list:
+            match = re.search(pattern, raw_text, re.IGNORECASE)
+            if match:
+                data[key] = match.group(1).strip().strip("`")
+                break
+
+    username = data.get("username", "").strip()
+    if username:
+        data["branch_name"] = _legacy_branch_name(username)
+    return data
+
+
+def _extract_issue_number(issue_url: str) -> Optional[int]:
+    match = re.search(r"/issues/(\d+)", str(issue_url or "").strip())
+    if not match:
+        return None
+    try:
+        return int(match.group(1))
+    except ValueError:
+        return None
+
+
+def _normalize_join_request_issue(issue: Dict[str, Any]) -> Dict[str, Any]:
+    issue_url = str(issue.get("html_url", "") or "").strip()
+    issue_title = str(issue.get("title", "") or "").strip()
+    issue_body = str(issue.get("body", "") or "")
+    parsed = parse_join_request_text(issue_body, title=issue_title)
+    username = parsed.get("username", "")
+    branch_name = parsed.get("branch_name", "")
+    display_title = parsed.get("title", "").strip()
+    if username and not display_title:
+        display_title = sync.get_station_title(branch_name) or branch_name
+
+    return {
+        "issue_number": issue.get("number"),
+        "issue_url": issue_url,
+        "title": issue_title,
+        "body": issue_body,
+        "username": username,
+        "branch_name": branch_name,
+        "display_title": display_title,
+        "full_name": parsed.get("full_name", ""),
+        "phone": parsed.get("phone", ""),
+        "state": str(issue.get("state", "") or "").strip(),
+        "created_at": str(issue.get("created_at", "") or "").strip(),
+        "updated_at": str(issue.get("updated_at", "") or "").strip(),
+    }
+
+
+def _is_join_request_issue(issue: Dict[str, Any]) -> bool:
+    title = str(issue.get("title", "") or "").strip()
+    body = str(issue.get("body", "") or "")
+    labels = issue.get("labels") or []
+
+    for label in labels:
+        if isinstance(label, dict) and str(label.get("name", "") or "").strip().lower() == "join-request":
+            return True
+        if isinstance(label, str) and label.strip().lower() == "join-request":
+            return True
+
+    if title.lower().startswith("[join request]"):
+        return True
+
+    parsed = parse_join_request_text(body, title=title)
+    return bool(parsed.get("username"))
+
+
+def fetch_join_request_issue(issue_url: str) -> Dict[str, Any]:
+    clean_url = str(issue_url or "").strip()
+    if not clean_url:
+        return {"ok": False, "message": "Thiếu link issue GitHub."}
+
+    issue_number = _extract_issue_number(clean_url)
+    if not issue_number:
+        return {"ok": False, "message": "Link issue không hợp lệ."}
+
+    repo = _get_software_repo()
+    parsed_url = urlparse(clean_url)
+    expected_repo_path = f"/{repo}/issues/"
+    if parsed_url.netloc and parsed_url.netloc != "github.com":
+        return {"ok": False, "message": "Link issue phải thuộc github.com."}
+    if parsed_url.path and expected_repo_path not in parsed_url.path:
+        return {"ok": False, "message": f"Link issue không thuộc repo {repo}."}
+
+    token = auth.get_current_access_token()
+    api_url = f"https://api.github.com/repos/{repo}/issues/{issue_number}"
+    result = _github_api_get(api_url, token=token)
+    if isinstance(result, dict) and result.get("error"):
+        return {"ok": False, "message": f"Không tải được issue: {result.get('error')}"}
+    if not isinstance(result, dict):
+        return {"ok": False, "message": "GitHub trả về dữ liệu issue không hợp lệ."}
+
+    normalized = _normalize_join_request_issue(result)
+    return {"ok": True, "issue": normalized}
+
+
+def list_pending_join_requests() -> Dict[str, Any]:
+    repo = _get_software_repo()
+    token = auth.get_current_access_token()
+    api_url = f"https://api.github.com/repos/{repo}/issues?state=open&per_page=50"
+    result = _github_api_get(api_url, token=token)
+    if isinstance(result, dict) and result.get("error"):
+        return {"ok": False, "message": f"Không tải được danh sách request chờ duyệt: {result.get('error')}", "items": []}
+    if not isinstance(result, list):
+        return {"ok": False, "message": "GitHub trả về danh sách issue không hợp lệ.", "items": []}
+
+    items = []
+    for issue in result:
+        if not isinstance(issue, dict):
+            continue
+        if issue.get("pull_request"):
+            continue
+        if not _is_join_request_issue(issue):
+            continue
+        items.append(_normalize_join_request_issue(issue))
+
+    items.sort(key=lambda item: item.get("updated_at", ""), reverse=True)
+    return {"ok": True, "items": items}
+
+
 def build_join_request_payload(
     *,
     username: str,
@@ -272,7 +448,6 @@ def build_join_request_payload(
         f"- GitHub username: `{username}`\n"
         f"- Họ và tên: {full_name or '(chưa nhập)'}\n"
         f"- Đơn vị / trạm: {organization or '(chưa nhập)'}\n"
-        f"- Số điện thoại: {phone or '(chưa nhập)'}\n"
         f"- Máy đang dùng: {machine.get('hostname', 'unknown-host')}\n"
         f"- Windows user: {machine.get('os_user', 'unknown-user')}\n"
         f"- Machine ID: `{machine.get('machine_id', '')}`\n"
@@ -344,3 +519,32 @@ def submit_join_request(
             "issue_url": fallback_url,
             "message": f"Không thể mở trang yêu cầu tham gia: {exc}",
         }
+
+
+def close_join_request_issue(issue_url: str, *, comment: str = "") -> Dict[str, Any]:
+    clean_url = str(issue_url or "").strip()
+    if not clean_url:
+        return {"ok": False, "message": "Thiếu link issue GitHub để đóng."}
+
+    issue_number = _extract_issue_number(clean_url)
+    if not issue_number:
+        return {"ok": False, "message": "Link issue không hợp lệ."}
+
+    token = auth.get_current_access_token()
+    if not token:
+        return {"ok": False, "message": "Chưa có token GitHub để đóng issue."}
+
+    repo = _get_software_repo()
+    issue_api_url = f"https://api.github.com/repos/{repo}/issues/{issue_number}"
+
+    clean_comment = str(comment or "").strip()
+    if clean_comment:
+        comment_result = _github_api_post(f"{issue_api_url}/comments", token, {"body": clean_comment})
+        if comment_result.get("error"):
+            return {"ok": False, "message": f"Không thêm được comment trước khi đóng issue: {comment_result.get('error')}"}
+
+    patch_result = _github_api_patch(issue_api_url, token, {"state": "closed"})
+    if patch_result.get("error"):
+        return {"ok": False, "message": f"Không đóng được issue: {patch_result.get('error')}"}
+
+    return {"ok": True, "message": f"Đã đóng issue #{issue_number}.", "issue_url": clean_url}
