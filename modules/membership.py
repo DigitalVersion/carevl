@@ -448,6 +448,7 @@ def build_join_request_payload(
         f"- GitHub username: `{username}`\n"
         f"- Họ và tên: {full_name or '(chưa nhập)'}\n"
         f"- Đơn vị / trạm: {organization or '(chưa nhập)'}\n"
+        f"- Số điện thoại: {phone or '(chưa nhập)'}\n"
         f"- Máy đang dùng: {machine.get('hostname', 'unknown-host')}\n"
         f"- Windows user: {machine.get('os_user', 'unknown-user')}\n"
         f"- Machine ID: `{machine.get('machine_id', '')}`\n"

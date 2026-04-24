@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import csv
+import json
+import re
 import subprocess
 import threading
 import webbrowser
@@ -30,12 +33,23 @@ from ui.design_tokens import (
     primary_button_style,
     secondary_button_style,
 )
-from ui.ui_components import add_modal_actions, add_modal_header, create_modal, status_badge
+from ui.ui_components import (
+    add_modal_actions,
+    add_modal_header,
+    create_action_bar,
+    create_metric_tile,
+    create_modal,
+    create_section_card,
+    populate_info_rows,
+    populate_queue_cards,
+    status_badge,
+)
 
 
 ROOT = Path(__file__).resolve().parents[1]
 CONFIG_DIR = ROOT / "config"
 REPORTS_DIR = ROOT / "reports"
+USERNAME_PATTERN = re.compile(r"^[A-Za-z0-9-]+$")
 
 
 class TaskCard(ctk.CTkFrame):
@@ -51,39 +65,39 @@ class TaskCard(ctk.CTkFrame):
         secondary_label: Optional[str] = None,
         **kwargs,
     ):
-        super().__init__(master, fg_color=SURFACE, corner_radius=18, border_width=1, border_color=BORDER, **kwargs)
+        super().__init__(master, fg_color=SURFACE, corner_radius=16, border_width=1, border_color=BORDER, **kwargs)
         self.grid_columnconfigure(0, weight=1)
 
         badge_host = ctk.CTkFrame(self, fg_color="transparent")
-        badge_host.grid(row=0, column=0, sticky="w", padx=16, pady=(14, 0))
+        badge_host.grid(row=0, column=0, sticky="w", padx=14, pady=(12, 0))
         status_badge(badge_host, category, "info").pack(anchor="w")
 
         ctk.CTkLabel(
             self,
             text=title,
-            font=font(18, "bold"),
+            font=font(16, "bold"),
             text_color=TEXT_PRIMARY,
             anchor="w",
-        ).grid(row=1, column=0, sticky="ew", padx=16, pady=(10, 4))
+        ).grid(row=1, column=0, sticky="ew", padx=14, pady=(8, 4))
 
         ctk.CTkLabel(
             self,
             text=description,
             justify="left",
-            wraplength=320,
+            wraplength=520,
             text_color=TEXT_MUTED,
             anchor="w",
-            font=font(14),
-        ).grid(row=2, column=0, sticky="ew", padx=16, pady=(0, 12))
+            font=font(13),
+        ).grid(row=2, column=0, sticky="ew", padx=14, pady=(0, 10))
 
         btn_row = ctk.CTkFrame(self, fg_color="transparent")
-        btn_row.grid(row=3, column=0, sticky="ew", padx=16, pady=(0, 14))
+        btn_row.grid(row=3, column=0, sticky="ew", padx=14, pady=(0, 12))
 
         ctk.CTkButton(
             btn_row,
             text=button_label,
             command=command,
-            **primary_button_style(height=38),
+            **primary_button_style(height=34),
         ).pack(side="left")
 
         if secondary_command and secondary_label:
@@ -91,7 +105,7 @@ class TaskCard(ctk.CTkFrame):
                 btn_row,
                 text=secondary_label,
                 command=secondary_command,
-                **secondary_button_style(height=38),
+                **secondary_button_style(height=34),
             ).pack(side="left", padx=(8, 0))
 
 
@@ -108,6 +122,12 @@ class AdminApp(ctk.CTk):
         self.configure(fg_color=BG_APP)
 
         self.is_running = False
+        self._log_lines = ["Admin App v1", "", "- Chạy tool quản trị và xem log tại đây."]
+        self._status_state = {
+            "text": "Sẵn sàng",
+            "fg": PRIMARY_BLUE_SOFT,
+            "text_color": PRIMARY_BLUE_TEXT,
+        }
         self._setup_ui()
         self.after(0, self._maximize_window)
         self._refresh_summary()
@@ -119,252 +139,143 @@ class AdminApp(ctk.CTk):
             self.attributes("-zoomed", True)
 
     def _setup_ui(self):
-        self.grid_columnconfigure(0, weight=1)
-        self.grid_rowconfigure(3, weight=1)
+        self.grid_columnconfigure(1, weight=1)
+        self.grid_rowconfigure(0, weight=1)
 
-        header = ctk.CTkFrame(
+        self._nav_buttons: dict[str, ctk.CTkButton] = {}
+        self._page_meta: dict[str, tuple[str, str]] = {}
+        self._page_builders: dict[str, Callable[[ctk.CTkFrame], ctk.CTkFrame]] = {}
+        self._current_page = ""
+
+        sidebar = ctk.CTkFrame(
             self,
+            width=220,
             fg_color=SURFACE,
-            corner_radius=24,
-            border_width=1,
-            border_color=BORDER,
+            corner_radius=0,
+            border_width=0,
         )
-        header.grid(row=0, column=0, sticky="ew", padx=20, pady=(18, 12))
-        header.grid_columnconfigure(0, weight=1)
-        header.grid_columnconfigure(1, weight=0)
+        sidebar.grid(row=0, column=0, sticky="nsw")
+        sidebar.grid_propagate(False)
+        sidebar.grid_rowconfigure(3, weight=1)
 
         ctk.CTkLabel(
-            header,
+            sidebar,
             text="CareVL Admin",
-            font=font(30, "bold"),
+            font=font(22, "bold"),
             text_color=TEXT_PRIMARY,
-        ).grid(row=0, column=0, sticky="w", padx=22, pady=(20, 0))
+        ).grid(row=0, column=0, sticky="w", padx=18, pady=(18, 4))
 
         ctk.CTkLabel(
-            header,
-            text="Quản lý danh sách trạm, tạo snapshot SQLite toàn hệ thống và build Hub DuckDB phục vụ thống kê.",
+            sidebar,
+            text="Hub nội bộ",
+            font=font(12),
             text_color=TEXT_MUTED,
-            font=font(14),
-            wraplength=560,
-            justify="left",
-        ).grid(row=1, column=0, sticky="w", padx=22, pady=(6, 0))
+        ).grid(row=1, column=0, sticky="w", padx=18, pady=(0, 10))
 
-        quick_meta = ctk.CTkFrame(header, fg_color="transparent")
-        quick_meta.grid(row=2, column=0, sticky="w", padx=22, pady=(14, 20))
-        status_badge(quick_meta, "Hub / Admin", "info").pack(side="left")
-        status_badge(quick_meta, "Vận hành nội bộ", "success").pack(side="left", padx=(8, 0))
+        nav_group = ctk.CTkFrame(sidebar, fg_color="transparent")
+        nav_group.grid(row=2, column=0, sticky="ew", padx=12, pady=(0, 12))
+        nav_group.grid_columnconfigure(0, weight=1)
 
-        top_actions = ctk.CTkFrame(header, fg_color="transparent")
-        top_actions.grid(row=0, column=1, rowspan=3, sticky="e", padx=22)
+        for idx, (page_key, label) in enumerate(
+            [
+                ("dashboard", "Dashboard"),
+                ("stations", "Stations"),
+                ("onboarding", "Onboarding"),
+                ("hub", "Hub"),
+                ("access", "Access"),
+            ]
+        ):
+            button = ctk.CTkButton(
+                nav_group,
+                text=label,
+                anchor="w",
+                command=lambda key=page_key: self._show_admin_page(key),
+                **secondary_button_style(height=36),
+            )
+            button.grid(row=idx, column=0, sticky="ew", pady=(0, 6))
+            self._nav_buttons[page_key] = button
+
+        sidebar_footer = ctk.CTkFrame(sidebar, fg_color="transparent")
+        sidebar_footer.grid(row=4, column=0, sticky="ew", padx=12, pady=(8, 18))
+        sidebar_footer.grid_columnconfigure(0, weight=1)
 
         ctk.CTkButton(
-            top_actions,
-            text="Mở stations.csv",
-            command=lambda: self._open_path(CONFIG_DIR / "stations.csv"),
-            **secondary_button_style(height=38),
-        ).pack(side="left", padx=(0, 8))
-
-        ctk.CTkButton(
-            top_actions,
+            sidebar_footer,
             text="Làm mới",
             command=self._refresh_summary,
-            **secondary_button_style(height=38),
-        ).pack(side="left")
+            **secondary_button_style(height=34),
+        ).grid(row=0, column=0, sticky="ew", pady=(0, 6))
 
         ctk.CTkButton(
-            top_actions,
+            sidebar_footer,
             text="Duyệt user",
             command=self._open_user_registry_modal,
-            **secondary_button_style(height=38),
-        ).pack(side="left", padx=(8, 0))
+            **primary_button_style(height=34),
+        ).grid(row=1, column=0, sticky="ew", pady=(0, 6))
 
-        summary = ctk.CTkFrame(self, fg_color="transparent")
-        summary.grid(row=1, column=0, sticky="ew", padx=20, pady=(0, 12))
-        for col in range(4):
-            summary.grid_columnconfigure(col, weight=1)
+        ctk.CTkButton(
+            sidebar_footer,
+            text="Mở stations.csv",
+            command=lambda: self._open_path(CONFIG_DIR / "stations.csv"),
+            **secondary_button_style(height=34),
+        ).grid(row=2, column=0, sticky="ew")
 
-        self.csv_summary = self._build_summary_card(summary, "Stations CSV", "Đang đọc...", "Nguồn gốc", 0)
-        self.json_summary = self._build_summary_card(summary, "stations.json", "Đang đọc...", "App config", 1)
-        self.report_summary = self._build_summary_card(summary, "Checklist", "Đang đọc...", "Onboarding", 2)
-        self.aggregate_summary = self._build_summary_card(summary, "Hub Data", "Đang đọc...", "Snapshot / DuckDB", 3)
+        shell = ctk.CTkFrame(self, fg_color="transparent")
+        shell.grid(row=0, column=1, sticky="nsew", padx=(0, 16), pady=16)
+        shell.grid_columnconfigure(0, weight=1)
+        shell.grid_rowconfigure(1, weight=1)
 
-        utility_row = ctk.CTkFrame(
-            self,
+        page_header = ctk.CTkFrame(
+            shell,
             fg_color=SURFACE,
             corner_radius=18,
             border_width=1,
             border_color=BORDER,
         )
-        utility_row.grid(row=2, column=0, sticky="ew", padx=20, pady=(0, 12))
-        utility_row.grid_columnconfigure(0, weight=1)
-        utility_row.grid_columnconfigure(1, weight=1)
-        utility_row.grid_columnconfigure(2, weight=1)
-        utility_row.grid_columnconfigure(3, weight=1)
+        page_header.grid(row=0, column=0, sticky="ew", pady=(0, 10))
+        page_header.grid_columnconfigure(0, weight=1)
 
-        self._build_quick_link(utility_row, "Mở JSON", "Kiểm tra metadata branch đang dùng", lambda: self._open_path(CONFIG_DIR / "stations.json"), 0)
-        self._build_quick_link(utility_row, "Mở Checklist", "Rà nhanh trạng thái onboarding", lambda: self._open_path(REPORTS_DIR / "onboarding_checklist.md"), 1)
-        self._build_quick_link(utility_row, "Mở Hub", "Đi tới thư mục reports/hub", lambda: self._open_path(REPORTS_DIR / "hub"), 2)
-        self._build_quick_link(utility_row, "Mở User Registry", "Duyệt user mới bằng config/user_registry.json", lambda: self._open_path(CONFIG_DIR / "user_registry.json"), 3)
-
-        content = ctk.CTkFrame(self, fg_color="transparent")
-        content.grid(row=3, column=0, sticky="nsew", padx=20, pady=(0, 16))
-        content.grid_columnconfigure(0, weight=3)
-        content.grid_columnconfigure(1, weight=2)
-        content.grid_rowconfigure(0, weight=1)
-
-        left = ctk.CTkScrollableFrame(content, fg_color="transparent")
-        left.grid(row=0, column=0, sticky="nsew", padx=(0, 12))
-        left.grid_columnconfigure(0, weight=1)
-
-        self._build_section_header(
-            left,
-            row=0,
-            title="Tác vụ hệ thống",
-            body="Các thao tác chính để cập nhật cấu hình trạm, gom dữ liệu SQLite và dựng lớp báo cáo cho Hub.",
-        )
-
-        TaskCard(
-            left,
-            category="Validate",
-            title="Kiểm tra danh sách trạm",
-            description="Validate stations.csv, phát hiện thiếu dữ liệu, branch trùng, station_id trùng hoặc username không đúng quy ước.",
-            command=lambda: self._run_script("scripts/check_station_registry.py"),
-            button_label="Chạy kiểm tra",
-            secondary_command=lambda: self._open_path(CONFIG_DIR / "stations.csv"),
-            secondary_label="Mở CSV",
-        ).grid(row=1, column=0, sticky="ew", pady=(0, 12))
-
-        TaskCard(
-            left,
-            category="Build",
-            title="Build stations.json",
-            description="Sinh config/stations.json từ stations.csv để app user và Hub đọc được metadata branch, station_id và commune_code.",
-            command=lambda: self._run_script("scripts/build_stations_json.py"),
-            button_label="Build JSON",
-            secondary_command=lambda: self._open_path(CONFIG_DIR / "stations.json"),
-            secondary_label="Mở JSON",
-        ).grid(row=2, column=0, sticky="ew", pady=(0, 12))
-
-        self._build_section_header(
-            left,
-            row=3,
-            title="Tổng hợp và đối soát",
-            body="Dành cho checklist bàn giao, snapshot backup và chuẩn bị dữ liệu tổng hợp.",
-        )
-
-        TaskCard(
-            left,
-            category="Onboarding",
-            title="Export onboarding checklist",
-            description="Xuất checklist để Hub theo dõi onboarding từng trạm, gồm CSV và Markdown trong thư mục reports.",
-            command=lambda: self._run_script("scripts/export_onboarding_checklist.py"),
-            button_label="Xuất checklist",
-            secondary_command=lambda: self._open_path(REPORTS_DIR / "onboarding_checklist.md"),
-            secondary_label="Mở file",
-        ).grid(row=4, column=0, sticky="ew", pady=(0, 12))
-
-        TaskCard(
-            left,
-            category="Snapshot",
-            title="Aggregate snapshot toàn hệ thống",
-            description="Đọc SQLite DB từ main và các branch trạm, xuất manifest cùng bảng encounter phẳng để Hub backup hoặc đối soát.",
-            command=lambda: self._run_script("scripts/aggregate_station_data.py"),
-            button_label="Chạy aggregate",
-            secondary_command=lambda: self._open_path(REPORTS_DIR / "aggregate"),
-            secondary_label="Mở thư mục",
-        ).grid(row=5, column=0, sticky="ew", pady=(0, 12))
-
-        TaskCard(
-            left,
-            category="Hub",
-            title="Build Hub DuckDB",
-            description="Dựng reports/hub/carevl_hub.duckdb từ snapshot aggregate mới nhất và xuất các bảng summary cho thống kê, dashboard.",
-            command=lambda: self._run_script("scripts/build_hub_duckdb.py"),
-            button_label="Build DuckDB",
-            secondary_command=lambda: self._open_path(REPORTS_DIR / "hub"),
-            secondary_label="Mở Hub",
-        ).grid(row=6, column=0, sticky="ew", pady=(0, 12))
-
-        right = ctk.CTkFrame(content, fg_color=SURFACE, corner_radius=18, border_width=1, border_color=BORDER)
-        right.grid(row=0, column=1, sticky="nsew")
-        right.grid_columnconfigure(0, weight=1)
-        right.grid_rowconfigure(4, weight=1)
-
-        ctk.CTkLabel(
-            right,
-            text="Bảng điều phối",
-            font=font(18, "bold"),
+        self.page_title_label = ctk.CTkLabel(
+            page_header,
+            text="Dashboard",
+            font=font(22, "bold"),
             text_color=TEXT_PRIMARY,
-        ).grid(row=0, column=0, sticky="w", padx=16, pady=(14, 4))
+        )
+        self.page_title_label.grid(row=0, column=0, sticky="w", padx=18, pady=(14, 0))
 
-        ctk.CTkLabel(
-            right,
-            text="Theo dõi trạng thái tác vụ, đọc hướng dẫn nhanh và xem log chạy script tại đây.",
-            font=font(13),
+        self.page_subtitle_label = ctk.CTkLabel(
+            page_header,
+            text="Tổng quan nhanh để điều phối tác vụ quản trị.",
+            font=font(12),
             text_color=TEXT_MUTED,
-            wraplength=320,
-            justify="left",
-        ).grid(row=1, column=0, sticky="w", padx=16, pady=(0, 10))
-
-        self.status_badge = ctk.CTkLabel(
-            right,
-            text="Sẵn sàng",
-            fg_color=PRIMARY_BLUE_SOFT,
-            text_color=PRIMARY_BLUE_TEXT,
-            corner_radius=10,
-            padx=10,
-            pady=4,
-            font=font(12, "semibold"),
-        )
-        self.status_badge.grid(row=2, column=0, sticky="w", padx=16, pady=(0, 10))
-
-        tip_panel = ctk.CTkFrame(right, fg_color=SURFACE_STRONG, corner_radius=14, border_width=1, border_color=BORDER_STRONG)
-        tip_panel.grid(row=3, column=0, sticky="ew", padx=16, pady=(0, 12))
-        ctk.CTkLabel(
-            tip_panel,
-            text="Quy trình khuyến nghị",
-            font=font(13, "semibold"),
-            text_color=TEXT_PRIMARY,
             anchor="w",
-        ).pack(anchor="w", padx=12, pady=(10, 4))
-        ctk.CTkLabel(
-            tip_panel,
-            text="1. Kiểm tra CSV\n2. Build JSON\n3. Xuất checklist\n4. Chạy aggregate SQLite\n5. Build Hub DuckDB",
-            font=font(13),
-            text_color=TEXT_SECONDARY,
-            justify="left",
-            anchor="w",
-        ).pack(anchor="w", padx=12, pady=(0, 12))
-
-        log_header = ctk.CTkFrame(right, fg_color="transparent")
-        log_header.grid(row=4, column=0, sticky="ew", padx=16, pady=(0, 6))
-        log_header.grid_columnconfigure(0, weight=1)
-        ctk.CTkLabel(
-            log_header,
-            text="Nhật ký tác vụ",
-            font=font(16, "bold"),
-            text_color=TEXT_PRIMARY,
-        ).grid(row=0, column=0, sticky="w")
-        ctk.CTkButton(
-            log_header,
-            text="Xóa log",
-            command=self._clear_log,
-            **secondary_button_style(width=90, height=30),
-        ).grid(row=0, column=1, sticky="e")
-
-        self.log_text = ctk.CTkTextbox(right, wrap="word")
-        self.log_text.grid(row=5, column=0, sticky="nsew", padx=16, pady=(0, 16))
-        self.log_text.insert(
-            "end",
-            "Admin App v1\n\n"
-            "- Dùng để chạy tool quản trị, không dùng để nhập liệu như trạm.\n"
-            "- Sửa nguồn dữ liệu tại config/stations.csv rồi chạy các tác vụ tương ứng.\n"
-            "- Kết quả sẽ hiện tại đây và có thể mở file/folder ngay từ giao diện.\n",
         )
-        self.log_text.configure(state="disabled")
+        self.page_subtitle_label.grid(row=1, column=0, sticky="w", padx=18, pady=(4, 12))
+
+        self.page_host = ctk.CTkFrame(shell, fg_color="transparent")
+        self.page_host.grid(row=1, column=0, sticky="nsew")
+        self.page_host.grid_columnconfigure(0, weight=1)
+        self.page_host.grid_rowconfigure(0, weight=1)
+
+        self._page_builders["dashboard"] = self._build_dashboard_page
+        self._page_meta["dashboard"] = ("Dashboard", "Không hỏi chuyện gì đã xảy ra. Chỉ hỏi: bây giờ phải làm gì.")
+
+        self._page_builders["stations"] = self._build_stations_page
+        self._page_meta["stations"] = ("Stations", "Nguồn sự thật cho metadata trạm: stations.csv và stations.json.")
+
+        self._page_builders["onboarding"] = self._build_onboarding_page
+        self._page_meta["onboarding"] = ("Onboarding", "Nguồn sự thật cho checklist và trạng thái onboarding.")
+
+        self._page_builders["hub"] = self._build_hub_page
+        self._page_meta["hub"] = ("Hub", "Nguồn sự thật cho snapshot aggregate và Hub DuckDB.")
+
+        self._page_builders["access"] = self._build_access_page
+        self._page_meta["access"] = ("Access", "Nguồn sự thật cho quyền truy cập, registry và runtime branch.")
+
+        self._show_admin_page("dashboard")
 
     def _build_summary_card(self, master, title: str, value: str, subtitle: str, column: int) -> ctk.CTkLabel:
-        card = ctk.CTkFrame(master, fg_color=SURFACE, corner_radius=18, border_width=1, border_color=BORDER)
+        card = ctk.CTkFrame(master, fg_color=SURFACE, corner_radius=16, border_width=1, border_color=BORDER)
         card.grid(row=0, column=column, sticky="ew", padx=(0 if column == 0 else 8, 0))
         card.grid_columnconfigure(0, weight=1)
 
@@ -373,89 +284,806 @@ class AdminApp(ctk.CTk):
             text=title,
             text_color=TEXT_MUTED,
             anchor="w",
-            font=font(13, "semibold"),
-        ).grid(row=0, column=0, sticky="ew", padx=14, pady=(12, 4))
+            font=font(12, "semibold"),
+        ).grid(row=0, column=0, sticky="ew", padx=12, pady=(10, 2))
 
         ctk.CTkLabel(
             card,
             text=subtitle,
             text_color=TEXT_SECONDARY,
             anchor="w",
-            font=font(12),
-        ).grid(row=1, column=0, sticky="ew", padx=14, pady=(0, 4))
+            font=font(11),
+        ).grid(row=1, column=0, sticky="ew", padx=12, pady=(0, 2))
 
         value_label = ctk.CTkLabel(
             card,
             text=value,
-            font=font(22, "bold"),
+            font=font(18, "bold"),
             text_color=TEXT_PRIMARY,
             anchor="w",
         )
-        value_label.grid(row=2, column=0, sticky="ew", padx=14, pady=(0, 12))
+        value_label.grid(row=2, column=0, sticky="ew", padx=12, pady=(0, 10))
         return value_label
 
-    def _build_quick_link(self, master, title: str, body: str, command: Callable[[], None], column: int) -> None:
+    def _build_toolbar_link(self, master, title: str, command: Callable[[], None], column: int) -> None:
         panel = ctk.CTkFrame(master, fg_color="transparent")
-        panel.grid(row=0, column=column, sticky="ew", padx=(0 if column == 0 else 10, 0))
-        panel.grid_columnconfigure(0, weight=1)
+        panel.grid(row=0, column=column, sticky="w", padx=(0 if column == 0 else 8, 0))
+        ctk.CTkButton(
+            panel,
+            text=title,
+            command=command,
+            **secondary_button_style(width=108, height=30),
+        ).pack(anchor="w")
 
+    def _build_page_panel(self, master, row: int, column: int, title: str, subtitle: str = "") -> ctk.CTkFrame:
+        panel = ctk.CTkFrame(master, fg_color=SURFACE, corner_radius=16, border_width=1, border_color=BORDER)
+        panel.grid(row=row, column=column, sticky="nsew", padx=(0 if column == 0 else 10, 0), pady=(0, 10))
+        panel.grid_columnconfigure(0, weight=1)
         ctk.CTkLabel(
             panel,
             text=title,
-            font=font(13, "semibold"),
+            font=font(15, "bold"),
             text_color=TEXT_PRIMARY,
             anchor="w",
-        ).grid(row=0, column=0, sticky="w", padx=14, pady=(12, 2))
-        ctk.CTkLabel(
-            panel,
-            text=body,
-            font=font(12),
-            text_color=TEXT_SECONDARY,
-            justify="left",
-            wraplength=240,
-            anchor="w",
-        ).grid(row=1, column=0, sticky="w", padx=14, pady=(0, 10))
-        ctk.CTkButton(
-            panel,
-            text="Mở",
-            command=command,
-            **secondary_button_style(width=84, height=30),
-        ).grid(row=2, column=0, sticky="w", padx=14, pady=(0, 12))
+        ).grid(row=0, column=0, sticky="ew", padx=14, pady=(12, 2))
+        if subtitle:
+            ctk.CTkLabel(
+                panel,
+                text=subtitle,
+                font=font(12),
+                text_color=TEXT_MUTED,
+                anchor="w",
+                justify="left",
+                wraplength=420,
+            ).grid(row=1, column=0, sticky="ew", padx=14, pady=(0, 10))
+        return panel
 
-    def _build_section_header(self, master, row: int, title: str, body: str) -> None:
+    def _build_metric_tile(self, master, row: int, column: int, label: str, value: str) -> None:
+        tile = ctk.CTkFrame(master, fg_color=SURFACE_STRONG, corner_radius=12, border_width=1, border_color=BORDER_STRONG)
+        tile.grid(row=row, column=column, sticky="ew", padx=(0 if column == 0 else 8, 0))
+        tile.grid_columnconfigure(0, weight=1)
+        ctk.CTkLabel(
+            tile,
+            text=label,
+            font=font(11, "semibold"),
+            text_color=TEXT_SECONDARY,
+            anchor="w",
+        ).grid(row=0, column=0, sticky="ew", padx=10, pady=(8, 2))
+        ctk.CTkLabel(
+            tile,
+            text=value,
+            font=font(15, "bold"),
+            text_color=TEXT_PRIMARY,
+            anchor="w",
+        ).grid(row=1, column=0, sticky="ew", padx=10, pady=(0, 8))
+
+    def _build_info_rows(self, master, row: int, items: list[tuple[str, str]]) -> None:
+        host = ctk.CTkFrame(master, fg_color="transparent")
+        host.grid(row=row, column=0, sticky="ew", padx=14, pady=(0, 12))
+        host.grid_columnconfigure(1, weight=1)
+        for idx, (label, value) in enumerate(items):
+            ctk.CTkLabel(
+                host,
+                text=label,
+                font=font(12, "semibold"),
+                text_color=TEXT_SECONDARY,
+                anchor="w",
+            ).grid(row=idx, column=0, sticky="w", pady=(0 if idx == 0 else 6, 0))
+            ctk.CTkLabel(
+                host,
+                text=value,
+                font=font(12),
+                text_color=TEXT_PRIMARY,
+                anchor="w",
+                justify="left",
+                wraplength=340,
+            ).grid(row=idx, column=1, sticky="ew", padx=(12, 0), pady=(0 if idx == 0 else 6, 0))
+
+    def _build_action_strip(self, master, row: int, actions: list[tuple[str, Callable[[], None], str]]) -> None:
+        host = ctk.CTkFrame(master, fg_color="transparent")
+        host.grid(row=row, column=0, sticky="w", padx=14, pady=(0, 12))
+        for idx, (label, command, tone) in enumerate(actions):
+            style = primary_button_style(height=32) if tone == "primary" else secondary_button_style(height=32)
+            ctk.CTkButton(
+                host,
+                text=label,
+                command=command,
+                **style,
+            ).pack(side="left", padx=(0 if idx == 0 else 8, 0))
+
+    def _build_preview_box(self, master, row: int, text: str, *, height: int = 140) -> ctk.CTkTextbox:
+        box = ctk.CTkTextbox(
+            master,
+            height=height,
+            wrap="word",
+            fg_color=SURFACE_STRONG,
+            border_color=BORDER_STRONG,
+            text_color=TEXT_PRIMARY,
+        )
+        box.grid(row=row, column=0, sticky="ew", padx=14, pady=(0, 12))
+        box.insert("1.0", text)
+        box.configure(state="disabled")
+        return box
+
+    def _build_mock_queue(
+        self,
+        master,
+        row: int,
+        items: list[dict[str, object]],
+        *,
+        empty_text: str = "Chưa có mục nào.",
+    ) -> None:
+        host = ctk.CTkFrame(master, fg_color="transparent")
+        host.grid(row=row, column=0, sticky="ew", padx=14, pady=(0, 12))
+        host.grid_columnconfigure(0, weight=1)
+
+        if not items:
+            ctk.CTkLabel(
+                host,
+                text=empty_text,
+                font=font(12),
+                text_color=TEXT_MUTED,
+                anchor="w",
+            ).grid(row=0, column=0, sticky="ew")
+            return
+
+        for idx, item in enumerate(items):
+            card = ctk.CTkFrame(
+                host,
+                fg_color=SURFACE_STRONG,
+                corner_radius=12,
+                border_width=1,
+                border_color=BORDER_STRONG,
+            )
+            card.grid(row=idx, column=0, sticky="ew", pady=(0, 8))
+            card.grid_columnconfigure(1, weight=1)
+
+            status_badge(
+                card,
+                str(item.get("badge", "Info")),
+                str(item.get("tone", "info")),
+            ).grid(row=0, column=0, sticky="w", padx=10, pady=(10, 6))
+
+            ctk.CTkLabel(
+                card,
+                text=str(item.get("title", "")),
+                font=font(13, "bold"),
+                text_color=TEXT_PRIMARY,
+                anchor="w",
+            ).grid(row=0, column=1, sticky="ew", padx=(8, 10), pady=(10, 2))
+
+            details = []
+            if item.get("meta"):
+                details.append(str(item.get("meta")))
+            if item.get("body"):
+                details.append(str(item.get("body")))
+            ctk.CTkLabel(
+                card,
+                text="\n".join(details),
+                font=font(12),
+                text_color=TEXT_MUTED,
+                anchor="w",
+                justify="left",
+                wraplength=520,
+            ).grid(row=1, column=1, sticky="ew", padx=(8, 10), pady=(0, 10))
+
+    def _build_decision_panel(
+        self,
+        master,
+        row: int,
+        title: str,
+        decision: str,
+        impact: str,
+        actions: list[tuple[str, Callable[[], None], str]],
+    ) -> None:
+        panel = self._build_page_panel(master, row, 0, title, "")
+        self._build_info_rows(
+            panel,
+            1,
+            [
+                ("Quyết định", decision),
+                ("Tác động", impact),
+            ],
+        )
+        self._build_action_strip(panel, 2, actions)
+
+    def _mock_station_queue(self) -> list[dict[str, object]]:
+        report = self._station_validation_report()
+        items: list[dict[str, object]] = []
+
+        for idx, message in enumerate(report.get("errors") or []):
+            items.append(
+                {
+                    "badge": "Lỗi",
+                    "tone": "danger",
+                    "title": f"Metadata lỗi #{idx + 1}",
+                    "meta": "Chặn build stations.json",
+                    "body": str(message),
+                }
+            )
+
+        for idx, message in enumerate(report.get("warnings") or []):
+            items.append(
+                {
+                    "badge": "Cảnh báo",
+                    "tone": "warning",
+                    "title": f"Cần rà soát #{idx + 1}",
+                    "meta": "Có thể build nhưng dễ sinh dữ liệu lệch",
+                    "body": str(message),
+                }
+            )
+
+        if not items:
+            items = [
+                {
+                    "badge": "Sẵn sàng",
+                    "tone": "success",
+                    "title": "Không có lỗi validate nổi bật",
+                    "meta": "Có thể mở CSV để rà soát thay đổi cuối",
+                    "body": "Nếu vừa chỉnh metadata, vẫn nên chạy kiểm tra trước khi build stations.json.",
+                }
+            ]
+
+        return items[:4]
+
+    def _mock_onboarding_queue(self) -> list[dict[str, object]]:
+        preview_lines = [line.strip() for line in self._onboarding_queue_preview_text().splitlines() if line.strip()]
+        items: list[dict[str, object]] = []
+        for idx, line in enumerate(preview_lines[:4]):
+            tone = "warning" if idx == 0 else "info"
+            items.append(
+                {
+                    "badge": "Theo dõi" if idx else "Ưu tiên",
+                    "tone": tone,
+                    "title": f"Trạm cần follow-up #{idx + 1}",
+                    "meta": "Checklist / runtime / onboarding",
+                    "body": line,
+                }
+            )
+        if not items:
+            items = [
+                {
+                    "badge": "Ổn",
+                    "tone": "success",
+                    "title": "Chưa có trạm pending nổi bật",
+                    "meta": "Checklist đang khá sạch",
+                    "body": "Khi export checklist mới, queue này sẽ hiện ngay trạm còn thiếu bước hoặc thiếu runtime.",
+                }
+            ]
+        return items
+
+    def _mock_hub_pipeline(self) -> list[dict[str, object]]:
+        return [
+            {
+                "badge": "B1",
+                "tone": "info",
+                "title": "Aggregate station data",
+                "meta": self._summarize_aggregate(),
+                "body": "Gom dữ liệu từ các nguồn trạm thành snapshot dùng chung cho Hub.",
+            },
+            {
+                "badge": "B2",
+                "tone": "warning",
+                "title": "Kiểm artifact trước khi build",
+                "meta": "reports/aggregate + reports/hub",
+                "body": "Kiểm tra snapshot mới nhất, tên file và thư mục output trước khi sinh DuckDB.",
+            },
+            {
+                "badge": "B3",
+                "tone": "info",
+                "title": "Build DuckDB cho Hub",
+                "meta": "carevl_hub.duckdb",
+                "body": "Sau khi build xong, mở thư mục Hub để đối soát output và chuyển cho bước thống kê.",
+            },
+        ]
+
+    def _mock_access_queue(self) -> list[dict[str, object]]:
+        items: list[dict[str, object]] = []
+        for idx, request in enumerate(self._pending_request_items()[:4]):
+            username = request.get("username") or "unknown"
+            title = request.get("display_title") or request.get("title") or username
+            branch_name = request.get("branch_name") or f"user/{username}"
+            items.append(
+                {
+                    "badge": f"#{request.get('issue_number') or '?'}",
+                    "tone": "warning" if idx == 0 else "info",
+                    "title": str(title),
+                    "meta": f"GitHub: {username}",
+                    "body": f"Branch đề xuất: {branch_name}",
+                }
+            )
+        if not items:
+            items = [
+                {
+                    "badge": "Inbox 0",
+                    "tone": "success",
+                    "title": "Không có request chờ duyệt",
+                    "meta": self._summarize_registry_count(),
+                    "body": "Khi có issue join request mới, hàng chờ sẽ hiện tại đây để vào modal xử lý ngay.",
+                }
+            ]
+        return items
+
+    def _build_section_header(self, master, row: int, title: str) -> None:
         block = ctk.CTkFrame(master, fg_color="transparent")
-        block.grid(row=row, column=0, sticky="ew", pady=(0, 10))
+        block.grid(row=row, column=0, sticky="ew", pady=(0, 8))
         ctk.CTkLabel(
             block,
             text=title,
-            font=font(20, "bold"),
+            font=font(16, "bold"),
             text_color=TEXT_PRIMARY,
             anchor="w",
         ).pack(anchor="w")
-        ctk.CTkLabel(
-            block,
-            text=body,
-            font=font(13),
-            text_color=TEXT_MUTED,
-            justify="left",
-            anchor="w",
-            wraplength=640,
-        ).pack(anchor="w", pady=(4, 0))
+
+    def _build_dashboard_page(self, master) -> ctk.CTkFrame:
+        page = ctk.CTkFrame(master, fg_color="transparent")
+        page.grid(row=0, column=0, sticky="nsew")
+        page.grid_columnconfigure(0, weight=7)
+        page.grid_columnconfigure(1, weight=5)
+        page.grid_rowconfigure(1, weight=1)
+
+        summary = ctk.CTkFrame(page, fg_color="transparent")
+        summary.grid(row=0, column=0, columnspan=2, sticky="ew", pady=(0, 10))
+        for col in range(4):
+            summary.grid_columnconfigure(col, weight=1)
+
+        self.csv_summary = self._build_summary_card(summary, "Stations CSV", "Đang đọc...", "Nguồn gốc", 0)
+        self.json_summary = self._build_summary_card(summary, "stations.json", "Đang đọc...", "App config", 1)
+        self.report_summary = self._build_summary_card(summary, "Checklist", "Đang đọc...", "Onboarding", 2)
+        self.aggregate_summary = self._build_summary_card(summary, "Hub Data", "Đang đọc...", "Snapshot / DuckDB", 3)
+
+        left = ctk.CTkScrollableFrame(page, fg_color="transparent")
+        left.grid(row=1, column=0, sticky="nsew", padx=(0, 10))
+        left.grid_columnconfigure(0, weight=1)
+
+        inbox_panel = self._build_page_panel(
+            left,
+            0,
+            0,
+            "Bây giờ tôi phải làm gì?",
+            "Trang này là command center. Mỗi dòng phải đẩy admin sang đúng màn xử lý, không phải để ngồi đọc số.",
+        )
+        self._build_mock_queue(
+            inbox_panel,
+            2,
+            [
+                {
+                    "badge": target,
+                    "tone": tone if tone in {"success", "warning", "danger"} else "info",
+                    "title": message,
+                    "meta": "Đi sang lane nghiệp vụ tương ứng",
+                    "body": f"Nếu đây là việc ưu tiên nhất hiện tại, chọn mục {target} ở sidebar rồi xử lý dứt điểm tại đó.",
+                }
+                for target, message, tone in self._dashboard_action_items()
+            ],
+            empty_text="Chưa có ngoại lệ nổi bật. Có thể chuyển sang một lane nghiệp vụ để thao tác chủ động.",
+        )
+
+        next_panel = self._build_page_panel(
+            left,
+            1,
+            0,
+            "4 lane vận hành",
+            "Dashboard chỉ điều phối. Mỗi lane bên dưới là một khu vực hành động khác nhau.",
+        )
+        self._build_mock_queue(
+            next_panel,
+            2,
+            [
+                {
+                    "badge": "Stations",
+                    "tone": "info",
+                    "title": "Sửa metadata trạm",
+                    "meta": "stations.csv -> validate -> stations.json",
+                    "body": "Vào đây khi branch, tên trạm, mã trạm hoặc metadata nguồn đang lệch.",
+                },
+                {
+                    "badge": "Onboarding",
+                    "tone": "warning",
+                    "title": "Rà soát trạm pending",
+                    "meta": "Checklist và follow-up",
+                    "body": "Dùng để biết trạm nào còn thiếu bước bàn giao hoặc cần nhắc lại.",
+                },
+                {
+                    "badge": "Hub",
+                    "tone": "info",
+                    "title": "Điều phối pipeline",
+                    "meta": "Aggregate -> DuckDB -> artifacts",
+                    "body": "Dùng khi cần build output hoặc kiểm tra pipeline đang dừng ở đâu.",
+                },
+                {
+                    "badge": "Access",
+                    "tone": "warning",
+                    "title": "Duyệt user và rà runtime",
+                    "meta": "Approval inbox / registry / runtime branch",
+                    "body": "Dùng khi có issue join request hoặc cần kiểm tra runtime sau khi duyệt.",
+                },
+            ],
+        )
+
+        right = ctk.CTkFrame(page, fg_color=SURFACE, corner_radius=16, border_width=1, border_color=BORDER)
+        right.grid(row=1, column=1, sticky="nsew")
+        right.grid_columnconfigure(0, weight=1)
+        right.grid_rowconfigure(4, weight=1)
+
+        ctk.CTkLabel(right, text="Bảng tác chiến", font=font(16, "bold"), text_color=TEXT_PRIMARY).grid(
+            row=0, column=0, sticky="w", padx=14, pady=(12, 6)
+        )
+
+        self.status_badge = ctk.CTkLabel(
+            right,
+            text=self._status_state["text"],
+            fg_color=self._status_state["fg"],
+            text_color=self._status_state["text_color"],
+            corner_radius=10,
+            padx=10,
+            pady=4,
+            font=font(12, "semibold"),
+        )
+        self.status_badge.grid(row=1, column=0, sticky="w", padx=14, pady=(0, 8))
+
+        system_panel = ctk.CTkFrame(right, fg_color=SURFACE_STRONG, corner_radius=12, border_width=1, border_color=BORDER_STRONG)
+        system_panel.grid(row=2, column=0, sticky="ew", padx=14, pady=(0, 10))
+        system_panel.grid_columnconfigure(0, weight=1)
+        ctk.CTkLabel(system_panel, text="Ưu tiên ngay lúc này", font=font(12, "semibold"), text_color=TEXT_PRIMARY, anchor="w").grid(row=0, column=0, sticky="ew", padx=10, pady=(8, 2))
+        self._build_info_rows(
+            system_panel,
+            1,
+            [
+                ("Nếu metadata lệch", "Vào Stations"),
+                ("Nếu trạm chưa xong", "Vào Onboarding"),
+                ("Nếu cần build output", "Vào Hub"),
+                ("Nếu có user mới", "Vào Access"),
+            ],
+        )
+
+        artifacts_panel = ctk.CTkFrame(right, fg_color=SURFACE_STRONG, corner_radius=12, border_width=1, border_color=BORDER_STRONG)
+        artifacts_panel.grid(row=3, column=0, sticky="ew", padx=14, pady=(0, 10))
+        artifacts_panel.grid_columnconfigure(0, weight=1)
+        ctk.CTkLabel(artifacts_panel, text="Nguyên tắc", font=font(12, "semibold"), text_color=TEXT_PRIMARY, anchor="w").grid(row=0, column=0, sticky="ew", padx=10, pady=(8, 2))
+        self._build_info_rows(
+            artifacts_panel,
+            1,
+            [
+                ("Dashboard", "Không trả lời 'đã xảy ra gì', chỉ trả lời 'làm gì tiếp'."),
+                ("Operational app", "Thấy vấn đề là phải có nút đi xử lý."),
+                ("Single source", "Mỗi dữ liệu/chức năng chỉ nằm ở một mục."),
+            ],
+        )
+
+        log_header = ctk.CTkFrame(right, fg_color="transparent")
+        log_header.grid(row=4, column=0, sticky="new", padx=14, pady=(0, 6))
+        log_header.grid_columnconfigure(0, weight=1)
+        ctk.CTkLabel(log_header, text="Nhật ký", font=font(14, "bold"), text_color=TEXT_PRIMARY).grid(row=0, column=0, sticky="w")
+        ctk.CTkButton(
+            log_header,
+            text="Xóa",
+            command=self._clear_log,
+            **secondary_button_style(width=70, height=28),
+        ).grid(row=0, column=1, sticky="e")
+
+        self.log_text = ctk.CTkTextbox(right, wrap="word")
+        self.log_text.grid(row=5, column=0, sticky="nsew", padx=14, pady=(0, 14))
+        self.log_text.insert("end", "\n".join(self._log_lines) + "\n")
+        self.log_text.configure(state="disabled")
+        return page
+
+    def _build_task_page(self, master, sections: list[tuple[str, list[dict[str, object]]]]) -> ctk.CTkFrame:
+        page = ctk.CTkScrollableFrame(master, fg_color="transparent")
+        page.grid(row=0, column=0, sticky="nsew")
+        page.grid_columnconfigure(0, weight=1)
+
+        row = 0
+        for section_title, tasks in sections:
+            self._build_section_header(page, row=row, title=section_title)
+            row += 1
+            for task in tasks:
+                TaskCard(
+                    page,
+                    category=str(task["category"]),
+                    title=str(task["title"]),
+                    description=str(task["description"]),
+                    command=task["command"],
+                    button_label=str(task["button_label"]),
+                    secondary_command=task.get("secondary_command"),
+                    secondary_label=task.get("secondary_label"),
+                ).grid(row=row, column=0, sticky="ew", pady=(0, 10))
+                row += 1
+        return page
+
+    def _build_stations_page(self, master) -> ctk.CTkFrame:
+        page = ctk.CTkScrollableFrame(master, fg_color="transparent")
+        page.grid(row=0, column=0, sticky="nsew")
+        page.grid_columnconfigure(0, weight=6)
+        page.grid_columnconfigure(1, weight=5)
+
+        overview = self._build_page_panel(page, 0, 0, "Queue lỗi metadata", "Màn này phải giúp admin chọn đúng lỗi để sửa trước, không chỉ mở file rồi đoán.")
+        overview.grid_columnconfigure((0, 1), weight=1)
+        self._build_metric_tile(overview, 2, 0, "stations.csv", self._summarize_csv())
+        self._build_metric_tile(overview, 2, 1, "stations.json", self._summarize_json())
+        self._build_mock_queue(overview, 3, self._mock_station_queue())
+
+        source_panel = self._build_page_panel(page, 0, 1, "Nguồn chỉnh tay", "Mock lý tưởng cho Stations là thấy rõ nguồn nào được sửa và nguồn nào chỉ là output build ra.")
+        self._build_info_rows(
+            source_panel,
+            2,
+            [
+                ("Nguồn chỉnh tay", "config/stations.csv"),
+                ("File build ra", "config/stations.json"),
+                ("Nguyên tắc", "Chỉ sửa một lần ở CSV rồi build lại JSON"),
+                ("Quyết định", "Nếu validate chưa sạch thì chưa được build"),
+            ],
+        )
+        self._build_action_strip(
+            source_panel,
+            3,
+            [
+                ("Mở stations.csv", lambda: self._open_path(CONFIG_DIR / "stations.csv"), "primary"),
+                ("Mở stations.json", lambda: self._open_path(CONFIG_DIR / "stations.json"), "secondary"),
+            ],
+        )
+
+        workbench = self._build_page_panel(page, 1, 0, "Decision workspace", "Kiểu màn hình tốt nhất cho Stations là: thấy lỗi -> quyết định sửa -> mới build.")
+        self._build_info_rows(
+            workbench,
+            2,
+            [
+                ("Nếu lỗi đỏ", "Quay về CSV và sửa ngay"),
+                ("Nếu chỉ còn cảnh báo", "Rà soát bằng mắt trước khi build"),
+                ("Nếu sạch", "Build stations.json và chuyển sang màn khác"),
+            ],
+        )
+        self._build_action_strip(
+            workbench,
+            3,
+            [
+                ("Kiểm tra CSV", lambda: self._run_script("scripts/check_station_registry.py"), "primary"),
+                ("Build JSON", lambda: self._run_script("scripts/build_stations_json.py"), "secondary"),
+            ],
+        )
+        self._build_preview_box(workbench, 4, self._stations_issue_preview_text(), height=180)
+
+        notes = self._build_page_panel(page, 1, 1, "Release gate", "Mock này nên giống một cổng phát hành nhỏ: đủ điều kiện thì mới cho build output.")
+        self._build_info_rows(
+            notes,
+            2,
+            [
+                ("Gate 1", "CSV không còn lỗi chặn"),
+                ("Gate 2", "Tên trạm / branch / mã trạm không lệch"),
+                ("Gate 3", "stations.json được build lại sau thay đổi"),
+                ("Gate 4", "Chỉ sau đó mới bàn tiếp Onboarding / Access / Hub"),
+            ],
+        )
+        return page
+
+    def _build_onboarding_page(self, master) -> ctk.CTkFrame:
+        page = ctk.CTkScrollableFrame(master, fg_color="transparent")
+        page.grid(row=0, column=0, sticky="nsew")
+        page.grid_columnconfigure(0, weight=6)
+        page.grid_columnconfigure(1, weight=5)
+
+        checklist_panel = self._build_page_panel(page, 0, 0, "Queue theo trạm", "Màn lý tưởng cho Onboarding là nhìn vào biết trạm nào đang mắc ở bước nào.")
+        checklist_panel.grid_columnconfigure((0, 1), weight=1)
+        self._build_metric_tile(checklist_panel, 2, 0, "Checklist", self._summarize_checklist())
+        self._build_metric_tile(checklist_panel, 2, 1, "Runtime", self._summarize_runtime_report())
+        self._build_mock_queue(checklist_panel, 3, self._mock_onboarding_queue())
+
+        quick_panel = self._build_page_panel(page, 0, 1, "Bước tiếp theo cho trạm đang kẹt", "Mock này nên đẩy admin tới hành động follow-up, không chỉ là xem file checklist.")
+        self._build_info_rows(
+            quick_panel,
+            2,
+            [
+                ("Nếu thiếu branch", "Chuyển sang Access hoặc Stations để xác định lại naming"),
+                ("Nếu thiếu checklist", "Xuất lại checklist rồi đối chiếu ngay"),
+                ("Nếu đã xong", "Đẩy trạm sang Hub hoặc vận hành tiếp"),
+            ],
+        )
+        self._build_action_strip(
+            quick_panel,
+            3,
+            [
+                ("Xuất checklist", lambda: self._run_script("scripts/export_onboarding_checklist.py"), "primary"),
+                ("Mở checklist", lambda: self._open_path(REPORTS_DIR / "onboarding_checklist.md"), "secondary"),
+            ],
+        )
+
+        queue_panel = self._build_page_panel(page, 1, 0, "Bằng chứng bàn giao", "Một page onboarding tốt luôn cho thấy admin đang dựa vào bằng chứng nào để kết luận trạm đã xong.")
+        self._build_preview_box(queue_panel, 2, self._checklist_preview_text(), height=180)
+
+        followup_panel = self._build_page_panel(page, 1, 1, "Runbook follow-up", "Luồng mock: phát hiện trạm pending -> mở bằng chứng -> chốt bước tiếp theo.")
+        self._build_info_rows(
+            followup_panel,
+            2,
+            [
+                ("Bước 1", "Chọn trạm còn pending hoặc có runtime bất thường"),
+                ("Bước 2", "Đọc checklist/bằng chứng, xác định thiếu bước nào"),
+                ("Bước 3", "Đi qua Stations hoặc Access nếu gốc vấn đề không nằm ở onboarding"),
+                ("Bước 4", "Cập nhật lại checklist rồi mới xem là xong"),
+            ],
+        )
+        return page
+
+    def _build_hub_page(self, master) -> ctk.CTkFrame:
+        page = ctk.CTkScrollableFrame(master, fg_color="transparent")
+        page.grid(row=0, column=0, sticky="nsew")
+        page.grid_columnconfigure(0, weight=6)
+        page.grid_columnconfigure(1, weight=5)
+
+        state_panel = self._build_page_panel(page, 0, 0, "Pipeline board", "Hub không phải chỗ kể chuyện dữ liệu. Nó phải cho biết pipeline đang dừng ở đâu và bấm gì tiếp.")
+        state_panel.grid_columnconfigure((0, 1), weight=1)
+        self._build_metric_tile(state_panel, 2, 0, "Hub", self._summarize_aggregate())
+        self._build_metric_tile(state_panel, 2, 1, "Runtime", self._summarize_runtime_report())
+        self._build_mock_queue(state_panel, 3, self._mock_hub_pipeline())
+
+        folders_panel = self._build_page_panel(page, 0, 1, "Bước tiếp theo trong pipeline", "Mock lý tưởng là admin thấy ngay còn thiếu aggregate, thiếu build, hay chỉ cần mở artifact.")
+        self._build_info_rows(
+            folders_panel,
+            2,
+            [
+                ("Nếu chưa có snapshot", "Chạy Aggregate"),
+                ("Nếu snapshot mới nhưng chưa có DB", "Build DuckDB"),
+                ("Nếu DB đã có", "Mở artifact và chuyển cho lớp thống kê"),
+            ],
+        )
+        self._build_action_strip(
+            folders_panel,
+            3,
+            [
+                ("Aggregate", lambda: self._run_script("scripts/aggregate_station_data.py"), "primary"),
+                ("Build DuckDB", lambda: self._run_script("scripts/build_hub_duckdb.py"), "secondary"),
+            ],
+        )
+
+        pipeline_panel = self._build_page_panel(page, 1, 0, "Artifact manifest", "Một page Hub tốt phải nói rõ artifact nào là nguồn để người khác dùng tiếp.")
+        self._build_info_rows(
+            pipeline_panel,
+            2,
+            [
+                ("Snapshot folder", "reports/aggregate"),
+                ("DuckDB", "reports/hub/carevl_hub.duckdb"),
+                ("Bước sau", "Mở thư mục output hoặc dùng cho lớp thống kê/report khác."),
+            ],
+        )
+        self._build_action_strip(
+            pipeline_panel,
+            3,
+            [
+                ("Mở aggregate", lambda: self._open_path(REPORTS_DIR / "aggregate"), "secondary"),
+                ("Mở hub", lambda: self._open_path(REPORTS_DIR / "hub"), "secondary"),
+            ],
+        )
+        self._build_preview_box(pipeline_panel, 4, self._hub_pipeline_preview_text(), height=150)
+
+        output_panel = self._build_page_panel(page, 1, 1, "Release checklist", "Mock này giúp chặn kiểu build xong nhưng không ai biết output đã đủ để dùng chưa.")
+        self._build_info_rows(
+            output_panel,
+            2,
+            [
+                ("Check 1", "Snapshot mới đúng thư mục và không rỗng"),
+                ("Check 2", "DuckDB được build từ snapshot hiện tại"),
+                ("Check 3", "Đã mở output để kiểm nhanh trước khi bàn giao"),
+            ],
+        )
+        return page
+
+    def _build_access_page(self, master) -> ctk.CTkFrame:
+        page = ctk.CTkScrollableFrame(master, fg_color="transparent")
+        page.grid(row=0, column=0, sticky="nsew")
+        page.grid_columnconfigure(0, weight=6)
+        page.grid_columnconfigure(1, weight=5)
+        first_issue_url = self._first_pending_issue_url()
+
+        access_panel = self._build_page_panel(page, 0, 0, "Approval inbox", "Page Access lý tưởng phải giống một bàn moderation: hàng chờ, quyết định, rồi theo dõi runtime.")
+        access_panel.grid_columnconfigure((0, 1), weight=1)
+        self._build_metric_tile(access_panel, 2, 0, "Request", self._summarize_pending_requests())
+        self._build_metric_tile(access_panel, 2, 1, "Registry", self._summarize_registry_count())
+        self._build_mock_queue(access_panel, 3, self._mock_access_queue())
+        self._build_action_strip(
+            access_panel,
+            4,
+            [
+                (
+                    "Duyệt request đầu tiên" if first_issue_url else "Mở duyệt user",
+                    (lambda url=first_issue_url: self._open_user_registry_modal(initial_issue_url=url)) if first_issue_url else self._open_user_registry_modal,
+                    "primary",
+                ),
+                ("Mở registry", lambda: self._open_path(CONFIG_DIR / "user_registry.json"), "secondary"),
+            ],
+        )
+
+        branch_panel = self._build_page_panel(page, 0, 1, "Decision workspace", "Mock lý tưởng cho Access là chọn request xong biết ngay cấp quyền, gắn branch hay tiếp tục soi runtime.")
+        branch_panel.grid_columnconfigure((0, 1), weight=1)
+        self._build_metric_tile(branch_panel, 2, 0, "Runtime", self._summarize_runtime_report())
+        self._build_metric_tile(branch_panel, 2, 1, "Hub", self._summarize_aggregate())
+        self._build_info_rows(
+            branch_panel,
+            3,
+            [
+                ("Nếu request hợp lệ", "Mở modal duyệt user và lưu vào registry"),
+                ("Nếu branch mơ hồ", "Quay về Stations hoặc xác nhận lại naming"),
+                ("Nếu runtime còn thiếu", "Chạy report runtime branch sau khi duyệt"),
+            ],
+        )
+        self._build_action_strip(
+            branch_panel,
+            4,
+            [
+                ("Chạy kiểm tra", lambda: self._run_script("scripts/check_runtime_branches.py"), "primary"),
+                ("Mở report", lambda: self._open_path(REPORTS_DIR / "hub" / "runtime_branch_status.json"), "secondary"),
+            ],
+        )
+        self._build_preview_box(branch_panel, 5, self._runtime_preview_text(), height=150)
+
+        registry_preview_panel = self._build_page_panel(page, 1, 0, "Registry local", "Dùng để tránh duyệt trùng và để biết user nào đã được map vào branch nào.")
+        self._build_preview_box(registry_preview_panel, 2, self._registry_preview_text(), height=150)
+
+        runtime_preview_panel = self._build_page_panel(page, 1, 1, "Runbook", "Flow chuẩn cho admin: duyệt request -> ghi quyền -> kiểm runtime -> chốt theo dõi.")
+        self._build_info_rows(
+            runtime_preview_panel,
+            2,
+            [
+                ("Bước 1", "Xử lý request trong inbox hoặc mở modal từ issue đầu tiên"),
+                ("Bước 2", "Lưu user vào registry với branch/title đúng"),
+                ("Bước 3", "Chạy report runtime để soi lệch branch hoặc thiếu DB"),
+                ("Bước 4", "Nếu còn lỗi gốc do naming/metadata thì quay lại Stations"),
+            ],
+        )
+
+        return page
+
+    def _show_admin_page(self, page_key: str) -> None:
+        if page_key not in self._page_builders:
+            return
+
+        self._current_page = page_key
+        for child in self.page_host.winfo_children():
+            child.destroy()
+        self._page_builders[page_key](self.page_host)
+        title, subtitle = self._page_meta.get(page_key, ("", ""))
+        self.page_title_label.configure(text=title)
+        self.page_subtitle_label.configure(text=subtitle)
+
+        for key, button in self._nav_buttons.items():
+            if key == page_key:
+                button.configure(
+                    fg_color=PRIMARY_BLUE,
+                    hover_color=PRIMARY_BLUE,
+                    text_color="#FFFFFF",
+                    border_width=0,
+                )
+            else:
+                base = secondary_button_style(height=36)
+                button.configure(
+                    fg_color=base["fg_color"],
+                    hover_color=base["hover_color"],
+                    text_color=base["text_color"],
+                    border_width=base["border_width"],
+                    border_color=base["border_color"],
+                )
 
     def _set_status(self, text: str, *, fg: str = PRIMARY_BLUE_SOFT, text_color: str = PRIMARY_BLUE_TEXT):
-        self.status_badge.configure(text=text, fg_color=fg, text_color=text_color)
+        self._status_state = {"text": text, "fg": fg, "text_color": text_color}
+        if hasattr(self, "status_badge") and self.status_badge.winfo_exists():
+            self.status_badge.configure(text=text, fg_color=fg, text_color=text_color)
 
     def _append_log(self, text: str):
-        self.log_text.configure(state="normal")
-        self.log_text.insert("end", text.rstrip() + "\n")
-        self.log_text.see("end")
-        self.log_text.configure(state="disabled")
+        clean = text.rstrip()
+        if clean:
+            self._log_lines.extend(clean.splitlines())
+        if hasattr(self, "log_text") and self.log_text.winfo_exists():
+            self.log_text.configure(state="normal")
+            self.log_text.delete("1.0", "end")
+            self.log_text.insert("end", "\n".join(self._log_lines) + "\n")
+            self.log_text.see("end")
+            self.log_text.configure(state="disabled")
 
     def _clear_log(self):
-        self.log_text.configure(state="normal")
-        self.log_text.delete("1.0", "end")
-        self.log_text.insert("end", "Log đã được xóa.\n")
-        self.log_text.configure(state="disabled")
+        self._log_lines = ["Log đã được xóa."]
+        if hasattr(self, "log_text") and self.log_text.winfo_exists():
+            self.log_text.configure(state="normal")
+            self.log_text.delete("1.0", "end")
+            self.log_text.insert("end", "Log đã được xóa.\n")
+            self.log_text.configure(state="disabled")
 
     def _run_script(self, script_path: str):
         if self.is_running:
@@ -499,19 +1127,23 @@ class AdminApp(ctk.CTk):
         self._refresh_summary()
 
     def _refresh_summary(self):
-        self.csv_summary.configure(text=self._summarize_csv())
-        self.json_summary.configure(text=self._summarize_json())
-        self.report_summary.configure(text=self._summarize_checklist())
-        self.aggregate_summary.configure(text=self._summarize_aggregate())
+        if hasattr(self, "csv_summary") and self.csv_summary.winfo_exists():
+            self.csv_summary.configure(text=self._summarize_csv())
+        if hasattr(self, "json_summary") and self.json_summary.winfo_exists():
+            self.json_summary.configure(text=self._summarize_json())
+        if hasattr(self, "report_summary") and self.report_summary.winfo_exists():
+            self.report_summary.configure(text=self._summarize_checklist())
+        if hasattr(self, "aggregate_summary") and self.aggregate_summary.winfo_exists():
+            self.aggregate_summary.configure(text=self._summarize_aggregate())
 
-    def _open_user_registry_modal(self):
-        dialog = create_modal(self, "Duyệt user mới", "1020x720")
+    def _open_user_registry_modal(self, initial_issue_url: str = ""):
+        dialog = create_modal(self, "Duyệt user mới", "980x640")
         dialog.resizable(True, True)
         dialog.update_idletasks()
         screen_w = dialog.winfo_screenwidth()
         screen_h = dialog.winfo_screenheight()
-        width = min(1020, max(880, screen_w - 120))
-        height = min(720, max(620, screen_h - 140))
+        width = min(980, max(860, screen_w - 160))
+        height = min(640, max(560, screen_h - 220))
         pos_x = max(40, (screen_w - width) // 2)
         pos_y = max(40, (screen_h - height) // 2)
         dialog.geometry(f"{width}x{height}+{pos_x}+{pos_y}")
@@ -520,7 +1152,6 @@ class AdminApp(ctk.CTk):
         add_modal_header(
             dialog,
             "Duyệt user trong app",
-            "Luồng gọn nhất là: chọn request ở tab Chờ duyệt, sang tab Duyệt để lưu quyền, rồi xem lại tab Registry nếu cần.",
         )
 
         body = ctk.CTkFrame(dialog, fg_color="transparent")
@@ -544,7 +1175,7 @@ class AdminApp(ctk.CTk):
 
         for tab in (pending_tab, approve_tab, registry_tab):
             tab.grid_columnconfigure(0, weight=1)
-            tab.grid_rowconfigure(1, weight=1)
+            tab.grid_rowconfigure(0, weight=1)
 
         selected_issue = {"value": ""}
         selected_registry_username = {"value": ""}
@@ -654,17 +1285,6 @@ class AdminApp(ctk.CTk):
             refresh_pending_requests(keep_selection=True)
             return True
 
-        pending_summary = ctk.CTkLabel(
-            pending_tab,
-            text="Chọn một request ở đây rồi sang tab Duyệt để lưu quyền. Issue sẽ không còn bị chìm trong một modal dài.",
-            font=font(12),
-            text_color=TEXT_MUTED,
-            anchor="w",
-            justify="left",
-            wraplength=780,
-        )
-        pending_summary.grid(row=0, column=0, sticky="ew", pady=(6, 10))
-
         pending_list_panel = ctk.CTkFrame(
             pending_tab,
             fg_color=SURFACE,
@@ -672,14 +1292,14 @@ class AdminApp(ctk.CTk):
             border_width=1,
             border_color=BORDER,
         )
-        pending_list_panel.grid(row=1, column=0, sticky="nsew")
+        pending_list_panel.grid(row=0, column=0, sticky="nsew", pady=(6, 0))
         pending_list_panel.grid_columnconfigure(0, weight=1)
         pending_list_panel.grid_rowconfigure(1, weight=1)
 
         pending_toolbar = ctk.CTkFrame(pending_list_panel, fg_color="transparent")
         pending_toolbar.grid(row=0, column=0, sticky="ew", padx=12, pady=(12, 8))
         pending_toolbar.grid_columnconfigure(0, weight=1)
-        pending_toolbar.grid_columnconfigure((1, 2, 3, 4), weight=0)
+        pending_toolbar.grid_columnconfigure((1, 2, 3, 4, 5), weight=0)
 
         pending_count_label = ctk.CTkLabel(
             pending_toolbar,
@@ -695,7 +1315,7 @@ class AdminApp(ctk.CTk):
             text="Làm mới",
             command=lambda: refresh_pending_requests(keep_selection=True),
             width=110,
-            **secondary_button_style(height=34),
+            **secondary_button_style(height=32),
         ).grid(row=0, column=1, padx=(8, 0))
 
         ctk.CTkButton(
@@ -703,24 +1323,32 @@ class AdminApp(ctk.CTk):
             text="Nạp issue",
             command=lambda: load_selected_request(select_tab=True),
             width=110,
-            **secondary_button_style(height=34),
+            **secondary_button_style(height=32),
         ).grid(row=0, column=2, padx=(8, 0))
+
+        ctk.CTkButton(
+            pending_toolbar,
+            text="Nạp đầu tiên",
+            command=lambda: load_first_request(),
+            width=110,
+            **secondary_button_style(height=32),
+        ).grid(row=0, column=3, padx=(8, 0))
 
         ctk.CTkButton(
             pending_toolbar,
             text="Mở issue",
             command=open_issue_link,
             width=110,
-            **secondary_button_style(height=34),
-        ).grid(row=0, column=3, padx=(8, 0))
+            **secondary_button_style(height=32),
+        ).grid(row=0, column=4, padx=(8, 0))
 
         ctk.CTkButton(
             pending_toolbar,
             text="Đóng issue",
             command=lambda: close_selected_issue(with_comment=False),
             width=110,
-            **secondary_button_style(height=34),
-        ).grid(row=0, column=4, padx=(8, 0))
+            **secondary_button_style(height=32),
+        ).grid(row=0, column=5, padx=(8, 0))
 
         pending_card_frame = ctk.CTkScrollableFrame(
             pending_list_panel,
@@ -731,25 +1359,22 @@ class AdminApp(ctk.CTk):
         pending_card_frame.grid_columnconfigure(0, weight=1)
         pending_card_host["widget"] = pending_card_frame
 
-        approve_summary = ctk.CTkLabel(
+        approve_scroll = ctk.CTkScrollableFrame(
             approve_tab,
-            text="Tab này chỉ lo duyệt quyền. Từ link issue, app tự điền thông tin cơ bản để bạn lưu nhanh.",
-            font=font(12),
-            text_color=TEXT_MUTED,
-            anchor="w",
-            justify="left",
-            wraplength=780,
+            fg_color="transparent",
+            corner_radius=0,
         )
-        approve_summary.grid(row=0, column=0, sticky="ew", pady=(6, 10))
+        approve_scroll.grid(row=0, column=0, sticky="nsew", pady=(6, 0))
+        approve_scroll.grid_columnconfigure(0, weight=1)
 
         approve_panel = ctk.CTkFrame(
-            approve_tab,
+            approve_scroll,
             fg_color=SURFACE,
             corner_radius=14,
             border_width=1,
             border_color=BORDER,
         )
-        approve_panel.grid(row=1, column=0, sticky="nsew")
+        approve_panel.grid(row=0, column=0, sticky="ew")
         approve_panel.grid_columnconfigure(1, weight=1)
         approve_panel.grid_rowconfigure(6, weight=1)
 
@@ -768,7 +1393,7 @@ class AdminApp(ctk.CTk):
             text="Nạp từ link",
             command=fetch_issue_from_input,
             width=120,
-            **secondary_button_style(height=34),
+            **secondary_button_style(height=32),
         ).pack(side="left")
 
         ctk.CTkButton(
@@ -776,7 +1401,7 @@ class AdminApp(ctk.CTk):
             text="Mở issue",
             command=open_issue_link,
             width=110,
-            **secondary_button_style(height=34),
+            **secondary_button_style(height=32),
         ).pack(side="left", padx=(8, 0))
 
         username_entry = self._registry_input(approve_panel, 2, "GitHub username", "Ví dụ: bacsi-nguyen")
@@ -789,7 +1414,7 @@ class AdminApp(ctk.CTk):
             font=font(13, "semibold"),
             text_color=TEXT_PRIMARY,
             anchor="w",
-        ).grid(row=5, column=0, sticky="w", padx=(16, 12), pady=(12, 0))
+        ).grid(row=5, column=0, sticky="w", padx=(16, 12), pady=(10, 0))
 
         approved_var = ctk.BooleanVar(value=True)
         ctk.CTkSwitch(
@@ -798,41 +1423,30 @@ class AdminApp(ctk.CTk):
             variable=approved_var,
             onvalue=True,
             offvalue=False,
-        ).grid(row=5, column=1, sticky="w", pady=(12, 0))
+        ).grid(row=5, column=1, sticky="w", pady=(10, 0))
 
         ctk.CTkLabel(
             approve_panel,
-            text="Xem nhanh request",
+            text="Tóm tắt request",
             font=font(13, "semibold"),
             text_color=TEXT_PRIMARY,
             anchor="w",
-        ).grid(row=6, column=0, sticky="nw", padx=(16, 12), pady=(12, 0))
+        ).grid(row=6, column=0, sticky="nw", padx=(16, 12), pady=(10, 0))
 
         issue_preview = ctk.CTkTextbox(
             approve_panel,
-            height=120,
+            height=72,
             wrap="word",
             fg_color=SURFACE_STRONG,
             border_color=BORDER_STRONG,
             text_color=TEXT_PRIMARY,
         )
-        issue_preview.grid(row=6, column=1, sticky="nsew", padx=(0, 16), pady=(12, 0))
+        issue_preview.grid(row=6, column=1, sticky="nsew", padx=(0, 16), pady=(10, 0))
         issue_preview.configure(state="disabled")
 
         approve_actions = ctk.CTkFrame(approve_panel, fg_color="transparent")
-        approve_actions.grid(row=7, column=0, columnspan=2, sticky="ew", padx=16, pady=(12, 0))
+        approve_actions.grid(row=7, column=0, columnspan=2, sticky="ew", padx=16, pady=(10, 0))
         approve_actions.grid_columnconfigure((0, 1), weight=1)
-
-        registry_summary = ctk.CTkLabel(
-            registry_tab,
-            text="Tab này dành cho danh sách local hiện có. Chọn user đã có để nạp lại form hoặc xóa quyền khi cần.",
-            font=font(12),
-            text_color=TEXT_MUTED,
-            anchor="w",
-            justify="left",
-            wraplength=780,
-        )
-        registry_summary.grid(row=0, column=0, sticky="ew", pady=(6, 10))
 
         registry_panel = ctk.CTkFrame(
             registry_tab,
@@ -841,7 +1455,7 @@ class AdminApp(ctk.CTk):
             border_width=1,
             border_color=BORDER,
         )
-        registry_panel.grid(row=1, column=0, sticky="nsew")
+        registry_panel.grid(row=0, column=0, sticky="nsew", pady=(6, 0))
         registry_panel.grid_columnconfigure(0, weight=1)
         registry_panel.grid_rowconfigure(1, weight=1)
 
@@ -864,7 +1478,7 @@ class AdminApp(ctk.CTk):
             text="Làm mới",
             command=lambda: refresh_registry_list(keep_selection=True),
             width=110,
-            **secondary_button_style(height=34),
+            **secondary_button_style(height=32),
         ).grid(row=0, column=1, padx=(8, 0))
 
         ctk.CTkButton(
@@ -872,7 +1486,7 @@ class AdminApp(ctk.CTk):
             text="Nạp user",
             command=lambda: load_selected_registry(select_tab=True),
             width=110,
-            **secondary_button_style(height=34),
+            **secondary_button_style(height=32),
         ).grid(row=0, column=2, padx=(8, 0))
 
         ctk.CTkButton(
@@ -880,7 +1494,7 @@ class AdminApp(ctk.CTk):
             text="Mở file",
             command=lambda: self._open_path(CONFIG_DIR / "user_registry.json"),
             width=110,
-            **secondary_button_style(height=34),
+            **secondary_button_style(height=32),
         ).grid(row=0, column=3, padx=(8, 0))
 
         registry_card_frame = ctk.CTkScrollableFrame(
@@ -1075,6 +1689,15 @@ class AdminApp(ctk.CTk):
             if fetch_issue_from_input(switch_tab=select_tab):
                 render_pending_request_cards()
 
+        def load_first_request() -> None:
+            items = pending_requests["items"]
+            if not items:
+                set_status("Không có request chờ duyệt nào để nạp.", "warning")
+                return
+            first_item = items[0]
+            select_pending_request(first_item, auto_load=False)
+            apply_issue_data(first_item, switch_tab=True, message=f"Đã nạp request #{first_item.get('issue_number')} sang tab Duyệt.")
+
         def select_registry_entry(entry: dict, *, auto_load: bool) -> None:
             selected_registry_username["value"] = str(entry.get("username", "") or "").strip()
             render_registry_cards()
@@ -1184,47 +1807,51 @@ class AdminApp(ctk.CTk):
             approve_actions,
             text="Lưu duyệt",
             command=lambda: save_entry(close_issue_after_save=False),
-            **primary_button_style(height=36),
+            **primary_button_style(height=32),
         ).grid(row=0, column=0, sticky="ew", padx=(0, 6), pady=(0, 8))
 
         ctk.CTkButton(
             approve_actions,
             text="Duyệt + đóng issue",
             command=lambda: save_entry(close_issue_after_save=True),
-            **secondary_button_style(height=36),
+            **secondary_button_style(height=32),
         ).grid(row=0, column=1, sticky="ew", padx=(6, 0), pady=(0, 8))
 
         ctk.CTkButton(
             approve_actions,
             text="Nạp user từ registry",
             command=lambda: load_selected_registry(select_tab=False),
-            **secondary_button_style(height=36),
+            **secondary_button_style(height=32),
         ).grid(row=1, column=0, sticky="ew", padx=(0, 6))
 
         ctk.CTkButton(
             approve_actions,
             text="Xóa user khỏi registry",
             command=delete_entry,
-            **secondary_button_style(height=36),
+            **secondary_button_style(height=32),
         ).grid(row=1, column=1, sticky="ew", padx=(6, 0))
 
         ctk.CTkButton(
             approve_actions,
             text="Làm trống form",
             command=clear_form,
-            **secondary_button_style(height=36),
+            **secondary_button_style(height=32),
         ).grid(row=2, column=0, sticky="ew", padx=(0, 6), pady=(8, 0))
 
         ctk.CTkButton(
             approve_actions,
             text="Mở file registry",
             command=lambda: self._open_path(CONFIG_DIR / "user_registry.json"),
-            **secondary_button_style(height=36),
+            **secondary_button_style(height=32),
         ).grid(row=2, column=1, sticky="ew", padx=(6, 0), pady=(8, 0))
 
         clear_preview()
         refresh_pending_requests()
         refresh_registry_list()
+        initial_issue = str(initial_issue_url or "").strip()
+        if initial_issue:
+            set_entry_value(issue_link_entry, initial_issue)
+            fetch_issue_from_input(switch_tab=True)
         add_modal_actions(dialog, "Đóng", dialog.destroy)
 
     def _registry_input(self, master, row: int, label: str, placeholder: str) -> ctk.CTkEntry:
@@ -1234,18 +1861,18 @@ class AdminApp(ctk.CTk):
             font=font(13, "semibold"),
             text_color=TEXT_PRIMARY,
             anchor="w",
-        ).grid(row=row, column=0, sticky="w", padx=(16, 12), pady=(14 if row == 0 else 10, 0))
+        ).grid(row=row, column=0, sticky="w", padx=(16, 12), pady=(12 if row == 0 else 8, 0))
 
         entry = ctk.CTkEntry(
             master,
             placeholder_text=placeholder,
-            height=38,
+            height=34,
             corner_radius=10,
             fg_color=SURFACE_STRONG,
             border_color=BORDER_STRONG,
             text_color=TEXT_PRIMARY,
         )
-        entry.grid(row=row, column=1, sticky="ew", padx=(0, 16), pady=(14 if row == 0 else 10, 0))
+        entry.grid(row=row, column=1, sticky="ew", padx=(0, 16), pady=(12 if row == 0 else 8, 0))
         return entry
 
     def _summarize_csv(self) -> str:
@@ -1288,6 +1915,331 @@ class AdminApp(ctk.CTk):
         if csv_path.exists() and md_path.exists():
             return "Đã xuất"
         return "Chưa xuất"
+
+    def _summarize_registry_count(self) -> str:
+        try:
+            entries = membership.list_local_registry_entries()
+            if not entries:
+                return "0 user"
+            approved = sum(1 for item in entries if item.get("approved"))
+            return f"{approved}/{len(entries)} duyệt"
+        except Exception:
+            return "Đọc lỗi"
+
+    def _summarize_pending_requests(self) -> str:
+        try:
+            result = membership.list_pending_join_requests()
+            if not result.get("ok"):
+                return "Không tải được"
+            items = result.get("items") or []
+            return f"{len(items)} request"
+        except Exception:
+            return "Đọc lỗi"
+
+    def _registry_preview_text(self) -> str:
+        try:
+            entries = membership.list_local_registry_entries()
+            if not entries:
+                return "Chưa có user nào trong registry local."
+
+            lines = []
+            for item in entries[:8]:
+                badge = "approved" if item.get("approved") else "pending"
+                lines.append(f"{item.get('username', '')} | {item.get('branch_name', '')} | {badge}")
+            if len(entries) > 8:
+                lines.append(f"... và còn {len(entries) - 8} user khác")
+            return "\n".join(lines)
+        except Exception as exc:
+            return f"Không đọc được registry local: {exc}"
+
+    def _stations_preview_text(self) -> str:
+        return "\n".join(
+            [
+                f"stations.csv: {self._summarize_csv()}",
+                f"stations.json: {self._summarize_json()}",
+                "",
+                "Nguồn chỉnh tay: config/stations.csv",
+                "File build ra: config/stations.json",
+                "Khi sửa metadata, luôn kiểm tra CSV trước rồi mới build JSON.",
+            ]
+        )
+
+    def _checklist_preview_text(self) -> str:
+        return "\n".join(
+            [
+                f"Checklist: {self._summarize_checklist()}",
+                f"CSV active: {self._summarize_csv()}",
+                "",
+                "Output chính:",
+                "- reports/onboarding_checklist.csv",
+                "- reports/onboarding_checklist.md",
+            ]
+        )
+
+    def _summarize_runtime_report(self) -> str:
+        report_path = REPORTS_DIR / "hub" / "runtime_branch_status.json"
+        if not report_path.exists():
+            return "Chưa có report"
+        try:
+            import json
+
+            with open(report_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            ok_count = int(data.get("ok_branches", 0) or 0)
+            total = int(data.get("total_branches", 0) or 0)
+            return f"{ok_count}/{total} OK" if total else "Report rỗng"
+        except Exception:
+            return "Report lỗi"
+
+    def _runtime_preview_text(self) -> str:
+        report_path = REPORTS_DIR / "hub" / "runtime_branch_status.json"
+        if not report_path.exists():
+            return "Chưa có report runtime branch."
+        try:
+            import json
+
+            with open(report_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+
+            total = int(data.get("total_branches", 0) or 0)
+            ok_count = int(data.get("ok_branches", 0) or 0)
+            missing_branch = int(data.get("missing_branches", 0) or 0)
+            missing_runtime_db = int(data.get("missing_runtime_db", 0) or 0)
+
+            lines = [
+                f"Tổng branch: {total}",
+                f"OK: {ok_count}",
+                f"Thiếu branch: {missing_branch}",
+                f"Thiếu runtime DB: {missing_runtime_db}",
+            ]
+
+            for item in (data.get("branches") or [])[:5]:
+                lines.append(f"- {item.get('branch_name', '')}: {item.get('status', '')}")
+            return "\n".join(lines)
+        except Exception as exc:
+            return f"Không đọc được report runtime: {exc}"
+
+    def _hub_preview_text(self) -> str:
+        return "\n".join(
+            [
+                f"Hub hiện tại: {self._summarize_aggregate()}",
+                "",
+                "Pipeline:",
+                "1. Aggregate snapshot",
+                "2. Build DuckDB",
+                "",
+                "Artifacts:",
+                "- reports/aggregate",
+                "- reports/hub/carevl_hub.duckdb",
+            ]
+        )
+
+    def _onboarding_queue_preview_text(self) -> str:
+        report_path = REPORTS_DIR / "hub" / "runtime_branch_status.json"
+        if not report_path.exists():
+            return "Chưa có report runtime branch. Hiện chỉ biết checklist đã xuất hay chưa."
+        try:
+            with open(report_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            lines = ["Queue follow-up suy ra từ runtime branch:", ""]
+            problem_items = [item for item in (data.get("branches") or []) if item.get("status") != "ok"]
+            if not problem_items:
+                lines.append("Không thấy branch nào đang lỗi theo report runtime.")
+            else:
+                for item in problem_items[:8]:
+                    lines.append(f"- {item.get('title', '')}: {item.get('status', '')}")
+            return "\n".join(lines)
+        except Exception as exc:
+            return f"Không đọc được runtime report cho onboarding queue: {exc}"
+
+    def _hub_pipeline_preview_text(self) -> str:
+        aggregate_dir = REPORTS_DIR / "aggregate"
+        hub_dir = REPORTS_DIR / "hub"
+        hub_db = hub_dir / "carevl_hub.duckdb"
+        lines = [
+            f"Snapshot folder: {'có' if aggregate_dir.exists() else 'chưa có'}",
+            f"DuckDB: {'có' if hub_db.exists() else 'chưa có'}",
+        ]
+        if aggregate_dir.exists():
+            snapshots = sorted(path.name for path in aggregate_dir.iterdir() if path.is_dir())
+            if snapshots:
+                lines.append(f"Snapshot mới nhất: {snapshots[-1]}")
+            else:
+                lines.append("Chưa có snapshot con nào trong reports/aggregate.")
+        if hub_db.exists():
+            lines.append(f"DuckDB file: {hub_db.name}")
+        lines.append("")
+        if not aggregate_dir.exists():
+            lines.append("Bước tiếp theo: chạy Aggregate.")
+        elif not hub_db.exists():
+            lines.append("Bước tiếp theo: build Hub DuckDB.")
+        else:
+            lines.append("Bước tiếp theo: kiểm tra artifact hoặc rebuild khi có snapshot mới.")
+        return "\n".join(lines)
+
+    def _pending_requests_preview_text(self) -> str:
+        try:
+            result = membership.list_pending_join_requests()
+            if not result.get("ok"):
+                return result.get("message", "Không tải được request chờ duyệt.")
+
+            items = result.get("items") or []
+            if not items:
+                return "Không có request chờ duyệt."
+
+            lines = []
+            for item in items[:8]:
+                issue_no = item.get("issue_number") or "?"
+                username = item.get("username") or "(chưa rõ username)"
+                title = item.get("display_title") or item.get("title") or ""
+                lines.append(f"#{issue_no} | {username}")
+                if title:
+                    lines.append(f"  {title}")
+            if len(items) > 8:
+                lines.append(f"... và còn {len(items) - 8} request khác")
+            return "\n".join(lines)
+        except Exception as exc:
+            return f"Không đọc được request chờ duyệt: {exc}"
+
+    def _pending_request_items(self) -> list[dict]:
+        try:
+            result = membership.list_pending_join_requests()
+            if not result.get("ok"):
+                return []
+            return list(result.get("items") or [])
+        except Exception:
+            return []
+
+    def _first_pending_issue_url(self) -> str:
+        items = self._pending_request_items()
+        if not items:
+            return ""
+        return str(items[0].get("issue_url", "") or "").strip()
+
+    def _normalize_bool(self, value: str) -> bool:
+        return str(value or "").strip().lower() not in {"0", "false", "no", "n", "off"}
+
+    def _station_validation_report(self) -> dict[str, object]:
+        csv_path = CONFIG_DIR / "stations.csv"
+        report: dict[str, object] = {
+            "active_rows": 0,
+            "branches": 0,
+            "errors": [],
+            "warnings": [],
+        }
+        if not csv_path.exists():
+            report["errors"] = ["Không tìm thấy config/stations.csv."]
+            return report
+
+        seen_station_ids: dict[str, int] = {}
+        seen_titles: dict[str, int] = {}
+        seen_branches: dict[str, int] = {}
+        seen_usernames: dict[str, int] = {}
+        errors: list[str] = []
+        warnings: list[str] = []
+
+        with open(csv_path, "r", encoding="utf-8-sig", newline="") as f:
+            reader = csv.DictReader(f)
+            for idx, row in enumerate(reader, start=2):
+                cleaned = {key.strip(): (value or "").strip() for key, value in row.items() if key}
+                if not self._normalize_bool(cleaned.get("active", "true")):
+                    continue
+
+                report["active_rows"] = int(report["active_rows"]) + 1
+                title = cleaned.get("title", "")
+                station_id = cleaned.get("station_id", "")
+                commune_code = cleaned.get("commune_code", "")
+                github_username = cleaned.get("github_username", "")
+                branch_name = cleaned.get("branch_name", "") or (f"user/{github_username}" if github_username else "")
+
+                if not title:
+                    errors.append(f"Dòng {idx}: thiếu title.")
+                elif title in seen_titles:
+                    warnings.append(f"Dòng {idx}: title '{title}' trùng với dòng {seen_titles[title]}.")
+                else:
+                    seen_titles[title] = idx
+
+                if not station_id:
+                    errors.append(f"Dòng {idx}: thiếu station_id.")
+                elif station_id in seen_station_ids:
+                    errors.append(f"Dòng {idx}: station_id '{station_id}' trùng với dòng {seen_station_ids[station_id]}.")
+                else:
+                    seen_station_ids[station_id] = idx
+
+                if commune_code and not commune_code.isdigit():
+                    warnings.append(f"Dòng {idx}: commune_code '{commune_code}' không phải số.")
+
+                if not branch_name:
+                    errors.append(f"Dòng {idx}: thiếu branch_name/github_username.")
+                elif branch_name in seen_branches:
+                    errors.append(f"Dòng {idx}: branch '{branch_name}' trùng với dòng {seen_branches[branch_name]}.")
+                else:
+                    seen_branches[branch_name] = idx
+
+                if branch_name == "main":
+                    if github_username:
+                        warnings.append(f"Dòng {idx}: branch main không cần github_username.")
+                else:
+                    if not branch_name.startswith("user/"):
+                        errors.append(f"Dòng {idx}: branch trạm phải bắt đầu bằng 'user/'.")
+                    if not github_username:
+                        errors.append(f"Dòng {idx}: branch trạm phải có github_username.")
+                    elif not USERNAME_PATTERN.match(github_username):
+                        warnings.append(f"Dòng {idx}: github_username '{github_username}' có ký tự ngoài mẫu đề xuất.")
+
+                if github_username:
+                    if github_username in seen_usernames:
+                        errors.append(f"Dòng {idx}: github_username '{github_username}' trùng với dòng {seen_usernames[github_username]}.")
+                    else:
+                        seen_usernames[github_username] = idx
+
+        report["branches"] = len(seen_branches)
+        report["errors"] = errors
+        report["warnings"] = warnings
+        return report
+
+    def _stations_issue_preview_text(self) -> str:
+        report = self._station_validation_report()
+        errors = list(report.get("errors") or [])
+        warnings = list(report.get("warnings") or [])
+        lines = [
+            f"Active rows: {report.get('active_rows', 0)}",
+            f"Branch active: {report.get('branches', 0)}",
+            f"Lỗi: {len(errors)}",
+            f"Cảnh báo: {len(warnings)}",
+            "",
+        ]
+        if errors:
+            lines.append("Lỗi nổi bật:")
+            lines.extend(f"- {item}" for item in errors[:6])
+        else:
+            lines.append("Không có lỗi validate.")
+        if warnings:
+            lines.append("")
+            lines.append("Cảnh báo nổi bật:")
+            lines.extend(f"- {item}" for item in warnings[:4])
+        return "\n".join(lines)
+
+    def _dashboard_action_items(self) -> list[tuple[str, str, str]]:
+        items: list[tuple[str, str, str]] = []
+
+        checklist_state = self._summarize_checklist()
+        if checklist_state != "Đã xuất":
+            items.append(("Onboarding", "Checklist onboarding chưa được xuất.", "warning"))
+
+        hub_state = self._summarize_aggregate()
+        if hub_state != "DuckDB sẵn sàng":
+            items.append(("Hub", "Hub DuckDB chưa sẵn sàng, cần aggregate/build.", "warning"))
+
+        runtime_state = self._summarize_runtime_report()
+        if runtime_state not in {"Chưa có report", "Report rỗng"} and not runtime_state.endswith("/0 OK"):
+            items.append(("Access", f"Runtime branch đang có ngoại lệ: {runtime_state}.", "danger"))
+        elif runtime_state == "Chưa có report":
+            items.append(("Access", "Chưa có report runtime branch để rà soát.", "warning"))
+
+        if not items:
+            items.append(("Dashboard", "Không có cảnh báo lớn. Có thể tiếp tục theo luồng chuẩn.", "success"))
+        return items
 
     def _summarize_aggregate(self) -> str:
         aggregate_dir = REPORTS_DIR / "aggregate"
