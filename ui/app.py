@@ -22,6 +22,8 @@ from ui.design_tokens import (
     secondary_button_style,
     destructive_button_style,
 )
+from ui.app_shell import AppShell
+from ui.terms import EDGE_LABEL, HUB_LABEL
 
 
 class App(ctk.CTk):
@@ -42,6 +44,7 @@ class App(ctk.CTk):
         self.is_admin: bool = False
         self.active_branch: str = "unknown"
         self.current_screen: Optional[ctk.CTkFrame] = None
+        self.current_shell: Optional[AppShell] = None
         
         self._setup_ui()
         self._check_auth()
@@ -122,7 +125,7 @@ class App(ctk.CTk):
 
         description = ctk.CTkLabel(
             login_frame,
-            text="Ứng dụng nhập liệu offline-first cho trạm y tế, đồng bộ qua GitHub khi có mạng.",
+            text=f"Ứng dụng nhập liệu offline-first cho {EDGE_LABEL}, đồng bộ về {HUB_LABEL} qua GitHub khi có mạng.",
             font=font(14),
             text_color=TEXT_MUTED,
             wraplength=520,
@@ -204,67 +207,75 @@ class App(ctk.CTk):
 
     def _show_screen_list(self):
         self._clear_screen()
-        
+
         from ui import screen_list
-        
+
         def on_create_record():
             self._show_screen_form(None, datetime.datetime.now().strftime("%d-%m-%Y"), None)
-        
+
         def on_view_record(record_id: str, date_str: str):
-            records = []
-            from modules import crud
+            from modules import record_store as crud
+
+            record = None
             try:
-                records = crud.read_day(date_str)
+                record = crud.load_encounter(record_id)
             except Exception:
-                pass
-            
-            record = next((r for r in records if r.get("id") == record_id), None)
+                record = None
+
+            if record is None:
+                records = []
+                try:
+                    records = crud.read_day(date_str)
+                except Exception:
+                    pass
+                record = next((r for r in records if r.get("id") == record_id), None)
+
             package_id = record.get("package_id") if record else None
-            
+
             self._show_screen_form(record_id, date_str, package_id)
-        
+
         def on_sync():
             self._show_sync_screen()
 
-        def on_logout():
-            self._on_logout()
-
         def on_switch_branch(branch_name: str):
             self._handle_branch_switch(branch_name)
-        
+
+        shell = self._create_authenticated_shell(active_key="records")
         screen = screen_list.render_list_screen(
-            self.container,
+            shell.content_frame,
             username=self.username or "",
             current_branch=self.active_branch,
             is_admin=self.is_admin,
             on_create_record=on_create_record,
             on_view_record=on_view_record,
             on_sync=on_sync,
-            on_logout=on_logout,
             on_switch_branch=on_switch_branch,
         )
         screen.pack(fill="both", expand=True)
         self.current_screen = screen
+        self.current_shell = shell
 
     def _show_screen_form(self, record_id: Optional[str], date_str: str, package_id: Optional[str]):
         self._clear_screen()
-        
+
         from ui import screen_form
-        
+
         def on_back():
             self._show_screen_list()
-        
+
         def on_saved():
             self._show_screen_list()
-        
+
         if not package_id:
             template = config_loader.load_template_form()
             packages = template.get("packages", [])
             if packages:
                 package_id = packages[0].get("id", "nct")
-        
+
+        active_key = "records" if record_id else "new_record"
+        shell = self._create_authenticated_shell(active_key=active_key)
         screen = screen_form.render_form_screen(
-            self.container,
+            shell.content_frame,
             record_id=record_id,
             date_str=date_str,
             package_id=package_id,
@@ -272,28 +283,100 @@ class App(ctk.CTk):
             branch_name=self.active_branch,
             branch_locked=self.is_admin,
             on_back=on_back,
-            on_saved=on_saved
+            on_saved=on_saved,
+            embedded_shell=True,
         )
         screen.pack(fill="both", expand=True)
         self.current_screen = screen
+        self.current_shell = shell
 
     def _show_sync_screen(self):
         self._clear_screen()
-        
+
         from ui import screen_sync
-        
+
         def on_back():
             self._show_screen_list()
-        
+
+        shell = self._create_authenticated_shell(active_key="sync")
         screen = screen_sync.render_sync_screen(
-            self.container,
+            shell.content_frame,
             username=self.username or "",
             branch_name=self.active_branch,
             branch_locked=self.is_admin,
-            on_back=on_back
+            on_back=on_back,
+            embedded_shell=True,
         )
         screen.pack(fill="both", expand=True)
         self.current_screen = screen
+        self.current_shell = shell
+
+    def _show_export_screen(self):
+        self._clear_screen()
+
+        from ui import screen_export
+
+        def on_back():
+            self._show_screen_list()
+
+        shell = self._create_authenticated_shell(active_key="export")
+        screen = screen_export.render_export_screen(
+            shell.content_frame,
+            username=self.username or "",
+            branch_name=self.active_branch,
+            on_back=on_back,
+        )
+        screen.pack(fill="both", expand=True)
+        self.current_screen = screen
+        self.current_shell = shell
+
+    def _show_import_screen(self):
+        self._clear_screen()
+
+        from ui import screen_import
+
+        def on_back():
+            self._show_screen_list()
+
+        shell = self._create_authenticated_shell(active_key="import")
+        screen = screen_import.render_import_screen(
+            shell.content_frame,
+            username=self.username or "",
+            branch_name=self.active_branch,
+            on_back=on_back,
+        )
+        screen.pack(fill="both", expand=True)
+        self.current_screen = screen
+        self.current_shell = shell
+
+    def _show_about_screen(self):
+        self._clear_screen()
+
+        from ui import screen_about
+
+        shell = self._create_authenticated_shell(active_key="about")
+        screen = screen_about.render_about_screen(shell.content_frame)
+        screen.pack(fill="both", expand=True)
+        self.current_screen = screen
+        self.current_shell = shell
+
+    def _create_authenticated_shell(self, active_key: str) -> AppShell:
+        shell = AppShell(
+            self.container,
+            username=self.username or "",
+            branch_name=self.active_branch,
+            is_admin=self.is_admin,
+            active_key=active_key,
+            on_open_records=self._show_screen_list,
+            on_open_new_record=lambda: self._show_screen_form(None, datetime.datetime.now().strftime("%d-%m-%Y"), None),
+            on_open_import=self._show_import_screen,
+            on_open_export=self._show_export_screen,
+            on_open_sync=self._show_sync_screen,
+            on_open_about=self._show_about_screen,
+            on_logout=self._on_logout,
+        )
+        shell.pack(fill="both", expand=True)
+        return shell
 
     def _handle_branch_switch(self, branch_name: str):
         from modules import sync
@@ -312,6 +395,7 @@ class App(ctk.CTk):
         for widget in self.container.winfo_children():
             widget.destroy()
         self.current_screen = None
+        self.current_shell = None
     
     def _on_logout(self):
         """Handle logout action."""

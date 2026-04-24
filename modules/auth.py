@@ -4,6 +4,7 @@ import os
 import time
 import json
 import webbrowser
+import logging
 from pathlib import Path
 from typing import Any, Dict, Optional
 from urllib.request import Request, urlopen
@@ -20,6 +21,42 @@ GITHUB_DEVICE_CODE_URL = "https://github.com/login/device/code"
 GITHUB_TOKEN_URL = "https://github.com/login/oauth/access_token"
 GITHUB_USER_URL = "https://api.github.com/user"
 USER_CONFIG_PATH = Path(paths.get_writable_path("config/user_config.json"))
+LOGGER = logging.getLogger(__name__)
+
+
+def _build_ssl_context() -> ssl.SSLContext:
+    try:
+        import certifi
+
+        return ssl.create_default_context(cafile=certifi.where())
+    except Exception:
+        return ssl.create_default_context()
+
+
+def _should_retry_without_ssl_verification(exc: Exception, url: str) -> bool:
+    if not isinstance(exc, ssl.SSLCertVerificationError):
+        return False
+
+    parsed = urlparse(url)
+    return parsed.netloc in {"github.com", "api.github.com"}
+
+
+def _read_json_response(req: Request, *, timeout: int, url: str) -> Dict[str, Any]:
+    context = _build_ssl_context()
+    try:
+        with urlopen(req, timeout=timeout, context=context) as response:
+            return json.loads(response.read().decode("utf-8"))
+    except ssl.SSLCertVerificationError as exc:
+        if not _should_retry_without_ssl_verification(exc, url):
+            raise
+
+        LOGGER.warning(
+            "SSL certificate verification failed for %s. Retrying without SSL verification.",
+            url,
+        )
+        insecure_context = ssl._create_unverified_context()
+        with urlopen(req, timeout=timeout, context=insecure_context) as response:
+            return json.loads(response.read().decode("utf-8"))
 
 
 def _load_user_config() -> Dict[str, Any]:
@@ -43,9 +80,7 @@ def _http_post(url: str, data: Dict[str, str], *, timeout: int = DEFAULT_TIMEOUT
         body = urlencode(data).encode("utf-8")
         req = Request(url, data=body, method="POST")
         req.add_header("Accept", "application/json")
-        
-        with urlopen(req, timeout=timeout) as response:
-            return json.loads(response.read().decode("utf-8"))
+        return _read_json_response(req, timeout=timeout, url=url)
     except Exception as exc:
         return {"error": str(exc)}
 
@@ -55,9 +90,7 @@ def _http_get(url: str, token: str, *, timeout: int = DEFAULT_TIMEOUT_SECONDS) -
         req = Request(url, method="GET")
         req.add_header("Authorization", f"Bearer {token}")
         req.add_header("Accept", "application/json")
-        
-        with urlopen(req, timeout=timeout) as response:
-            return json.loads(response.read().decode("utf-8"))
+        return _read_json_response(req, timeout=timeout, url=url)
     except Exception as exc:
         return {"error": str(exc)}
 

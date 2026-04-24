@@ -133,7 +133,7 @@ class AdminApp(ctk.CTk):
 
         ctk.CTkLabel(
             header,
-            text="Quản lý danh sách trạm, build config, checklist onboarding và aggregate dữ liệu toàn hệ thống.",
+            text="Quản lý danh sách trạm, tạo snapshot SQLite toàn hệ thống và build Hub DuckDB phục vụ thống kê.",
             text_color=TEXT_MUTED,
             font=font(14),
             wraplength=560,
@@ -142,7 +142,7 @@ class AdminApp(ctk.CTk):
 
         quick_meta = ctk.CTkFrame(header, fg_color="transparent")
         quick_meta.grid(row=2, column=0, sticky="w", padx=22, pady=(14, 20))
-        status_badge(quick_meta, "HQ / Admin", "info").pack(side="left")
+        status_badge(quick_meta, "Hub / Admin", "info").pack(side="left")
         status_badge(quick_meta, "Vận hành nội bộ", "success").pack(side="left", padx=(8, 0))
 
         top_actions = ctk.CTkFrame(header, fg_color="transparent")
@@ -170,7 +170,7 @@ class AdminApp(ctk.CTk):
         self.csv_summary = self._build_summary_card(summary, "Stations CSV", "Đang đọc...", "Nguồn gốc", 0)
         self.json_summary = self._build_summary_card(summary, "stations.json", "Đang đọc...", "App config", 1)
         self.report_summary = self._build_summary_card(summary, "Checklist", "Đang đọc...", "Onboarding", 2)
-        self.aggregate_summary = self._build_summary_card(summary, "Aggregate", "Đang đọc...", "Snapshot", 3)
+        self.aggregate_summary = self._build_summary_card(summary, "Hub Data", "Đang đọc...", "Snapshot / DuckDB", 3)
 
         utility_row = ctk.CTkFrame(
             self,
@@ -186,7 +186,7 @@ class AdminApp(ctk.CTk):
 
         self._build_quick_link(utility_row, "Mở JSON", "Kiểm tra metadata branch đang dùng", lambda: self._open_path(CONFIG_DIR / "stations.json"), 0)
         self._build_quick_link(utility_row, "Mở Checklist", "Rà nhanh trạng thái onboarding", lambda: self._open_path(REPORTS_DIR / "onboarding_checklist.md"), 1)
-        self._build_quick_link(utility_row, "Mở Snapshot", "Đi tới thư mục aggregate gần nhất", lambda: self._open_path(REPORTS_DIR / "aggregate"), 2)
+        self._build_quick_link(utility_row, "Mở Hub", "Đi tới thư mục reports/hub", lambda: self._open_path(REPORTS_DIR / "hub"), 2)
 
         content = ctk.CTkFrame(self, fg_color="transparent")
         content.grid(row=3, column=0, sticky="nsew", padx=20, pady=(0, 16))
@@ -202,7 +202,7 @@ class AdminApp(ctk.CTk):
             left,
             row=0,
             title="Tác vụ hệ thống",
-            body="Các thao tác chính để cập nhật cấu hình trạm và xuất dữ liệu phục vụ HQ.",
+            body="Các thao tác chính để cập nhật cấu hình trạm, gom dữ liệu SQLite và dựng lớp báo cáo cho Hub.",
         )
 
         TaskCard(
@@ -220,7 +220,7 @@ class AdminApp(ctk.CTk):
             left,
             category="Build",
             title="Build stations.json",
-            description="Sinh config/stations.json từ stations.csv để app user và HQ đọc được metadata branch, station_id và commune_code.",
+            description="Sinh config/stations.json từ stations.csv để app user và Hub đọc được metadata branch, station_id và commune_code.",
             command=lambda: self._run_script("scripts/build_stations_json.py"),
             button_label="Build JSON",
             secondary_command=lambda: self._open_path(CONFIG_DIR / "stations.json"),
@@ -238,7 +238,7 @@ class AdminApp(ctk.CTk):
             left,
             category="Onboarding",
             title="Export onboarding checklist",
-            description="Xuất checklist để HQ theo dõi onboarding từng trạm, gồm CSV và Markdown trong thư mục reports.",
+            description="Xuất checklist để Hub theo dõi onboarding từng trạm, gồm CSV và Markdown trong thư mục reports.",
             command=lambda: self._run_script("scripts/export_onboarding_checklist.py"),
             button_label="Xuất checklist",
             secondary_command=lambda: self._open_path(REPORTS_DIR / "onboarding_checklist.md"),
@@ -249,12 +249,23 @@ class AdminApp(ctk.CTk):
             left,
             category="Snapshot",
             title="Aggregate snapshot toàn hệ thống",
-            description="Gom snapshot từ main và các branch trạm đang có, xuất manifest, all-records và by-station/by-branch để HQ backup hoặc đối soát.",
+            description="Đọc SQLite DB từ main và các branch trạm, xuất manifest cùng bảng encounter phẳng để Hub backup hoặc đối soát.",
             command=lambda: self._run_script("scripts/aggregate_station_data.py"),
             button_label="Chạy aggregate",
             secondary_command=lambda: self._open_path(REPORTS_DIR / "aggregate"),
             secondary_label="Mở thư mục",
         ).grid(row=5, column=0, sticky="ew", pady=(0, 12))
+
+        TaskCard(
+            left,
+            category="Hub",
+            title="Build Hub DuckDB",
+            description="Dựng reports/hub/carevl_hub.duckdb từ snapshot aggregate mới nhất và xuất các bảng summary cho thống kê, dashboard.",
+            command=lambda: self._run_script("scripts/build_hub_duckdb.py"),
+            button_label="Build DuckDB",
+            secondary_command=lambda: self._open_path(REPORTS_DIR / "hub"),
+            secondary_label="Mở Hub",
+        ).grid(row=6, column=0, sticky="ew", pady=(0, 12))
 
         right = ctk.CTkFrame(content, fg_color=SURFACE, corner_radius=18, border_width=1, border_color=BORDER)
         right.grid(row=0, column=1, sticky="nsew")
@@ -300,7 +311,7 @@ class AdminApp(ctk.CTk):
         ).pack(anchor="w", padx=12, pady=(10, 4))
         ctk.CTkLabel(
             tip_panel,
-            text="1. Kiểm tra CSV\n2. Build JSON\n3. Xuất checklist\n4. Chạy aggregate cuối ngày",
+            text="1. Kiểm tra CSV\n2. Build JSON\n3. Xuất checklist\n4. Chạy aggregate SQLite\n5. Build Hub DuckDB",
             font=font(13),
             text_color=TEXT_SECONDARY,
             justify="left",
@@ -518,6 +529,11 @@ class AdminApp(ctk.CTk):
 
     def _summarize_aggregate(self) -> str:
         aggregate_dir = REPORTS_DIR / "aggregate"
+        hub_dir = REPORTS_DIR / "hub"
+        hub_db = hub_dir / "carevl_hub.duckdb"
+        if hub_db.exists():
+            return "DuckDB sẵn sàng"
+
         if not aggregate_dir.exists():
             return "Chưa có snapshot"
 

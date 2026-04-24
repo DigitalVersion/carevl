@@ -1,7 +1,7 @@
 {
   "main": {
-    "title": "CareVL - HQ",
-    "station_id": "HQ",
+    "title": "CareVL - Hub",
+    "station_id": "HUB",
     "commune_code": ""
   },
   "user/TRAM-Y-TE-P-CAI-VON": {
@@ -80,3 +80,5 @@
     "commune_code": "86853"
   }
 }
+
+

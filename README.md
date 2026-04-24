@@ -1,6 +1,6 @@
 # CareVL - Care Vinh Long
 
-Ứng dụng desktop quản lý hồ sơ khám sức khỏe định kỳ miễn phí cho người dân tỉnh Vĩnh Long, giai đoạn 2026–2030.
+Ứng dụng desktop quản lý dữ liệu khám sức khỏe định kỳ miễn phí cho người dân tỉnh Vĩnh Long, giai đoạn 2026–2030.
 
 ---
 
@@ -88,9 +88,9 @@ Tài liệu chi tiết nằm ở `Onboarding/README.md`.
 
 ### Luồng dữ liệu
 ```
-[Trạm 1 - user/bacsi-le]       → Clone repo → Tạo hồ sơ → Commit → Push → user/bacsi-le
-[Trạm 2 - user/bacsi-nguyen]  → Clone repo → Tạo hồ sơ → Commit → Push → user/bacsi-nguyen
-[Trạm 3 - user/bacsi-tran]    → Clone repo → Tạo hồ sơ → Commit → Push → user/bacsi-tran
+[Trạm 1 - user/bacsi-le]       → Clone repo → Thêm lượt khám mới → Commit → Push → user/bacsi-le
+[Trạm 2 - user/bacsi-nguyen]  → Clone repo → Thêm lượt khám mới → Commit → Push → user/bacsi-nguyen
+[Trạm 3 - user/bacsi-tran]    → Clone repo → Thêm lượt khám mới → Commit → Push → user/bacsi-tran
                                               ↓
                               [Hub merge all user/* branches]
                                               ↓
@@ -201,12 +201,13 @@ carevl/
 │   └── user_config.json    # OAuth token - TUJ DANG commit vo .gitignore
 │
 ├── data/                   # SQLite local store
-│   └── carevl_phase2.db   # Main local store
+│   └── carevl.db          # Main local store
 │
 ├── ui/
 │   ├── app.py             # Main app with dark theme
-│   ├── screen_list.py     # Danh sach ho so (tksheet table)
-│   ├── screen_form.py     # Nhap sua ho so
+│   ├── screen_list.py     # Danh sach luot kham (tksheet table)
+│   ├── screen_form.py     # Them/sua luot kham
+│   ├── screen_import.py   # Nhap du lieu hang loat tu template
 │   └── screen_sync.py   # Dong bo Git (progress bar)
 │
 └── modules/
@@ -224,7 +225,7 @@ carevl/
 - **Package Manager**: UV (dev only, client không cần)
 - **UI Framework**: CustomTkinter + tksheet (table with sort/search)
 - **Packaging**: PyInstaller (bundles Python interpreter)
-- **Storage**: SQLite local (`data/carevl_phase2.db`)
+- **Storage**: SQLite local (`data/carevl.db`)
 - **Sync**: Git CLI via subprocess
 - **Hub Analytics**: DuckDB tu snapshot aggregate
 - **Auth**: GitHub OAuth Device Flow
@@ -234,14 +235,14 @@ carevl/
 ### Người dùng
 
 1. **Đăng nhập**: Xác thực qua GitHub OAuth
-2. **Tạo hồ sơ**: Chọn gói khám, nhập thông tin
+2. **Thêm lượt khám mới**: Chọn gói khám, nhập thông tin
 3. **Lưu**: Dữ liệu lưu local, tự động commit Git
 4. **Đồng bộ**: Khi có mạng, nhấn "Gửi về Hub" để push
 
 ### Đoàn khám lưu động
 
 1. Làm việc offline hoàn toàn
-2. Dữ liệu lưu local trong `data/carevl_phase2.db`
+2. Dữ liệu lưu local trong `data/carevl.db`
 3. Về trạm có mạng → đồng bộ SQLite DB lên GitHub
 4. Hub aggregate các branch và build DuckDB để báo cáo
 
@@ -263,8 +264,24 @@ Cấu hình gói khám trong `config/template_form.json`.
 
 - **Mỗi user** có branch riêng: `user/{username}`
 - **Push**: Tự động push vào branch của user hiện tại
-- **Pull**: Chỉ pull từ branch của mình
+- **User App**: Chỉ hỗ trợ gửi dữ liệu từ máy hiện tại lên branch của mình
 - **Hub**: Merge tất cả `user/*` branches vào `main` để tổng hợp
+
+### GitHub giúp được gì và không giúp được gì
+
+- GitHub giúp lưu lịch sử commit để truy vết thay đổi và hỗ trợ phục hồi về bản đã commit trước đó.
+- GitHub giúp biết file `carevl.db` có thay đổi hay không khi người dùng bấm gửi dữ liệu.
+- GitHub không đảm bảo tuyệt đối rằng dữ liệu sẽ luôn đúng hoặc luôn được hợp nhất an toàn.
+- SQLite là file nhị phân, nên Git không hiểu cách trộn chi tiết từng lượt khám như với file text.
+- Vì vậy, an toàn vận hành vẫn phải dựa vào quy tắc sử dụng đúng, không chỉ dựa vào GitHub.
+
+### Quy tắc an toàn bắt buộc cho người dùng
+
+- Mỗi workspace trạm chỉ dùng trên một máy vận hành chính thức.
+- Không chép đè `carevl.db` bằng file lạ nếu chưa có hướng dẫn từ Hub/Admin.
+- Khi có mạng, dùng nút `Gửi về Hub`; không tự thao tác Git ngoài app nếu không được giao nhiệm vụ kỹ thuật.
+- Nếu cần lưu dự phòng hoặc bàn giao, dùng màn hình `Xuất dữ liệu` để tạo `DB snapshot`.
+- Nếu nghi ngờ dữ liệu sai hoặc máy có sự cố, dừng thao tác và báo Hub/Admin ngay.
 
 ### Auto Login
 

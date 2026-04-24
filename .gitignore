@@ -39,7 +39,13 @@ ENV/
 
 # VLMD Specific
 config/user_config.json
+config/device_config.json
 *.log
+logs/
+data/
+data/backups/
+%SystemDrive%/
+vinhlong-health-record/
 
 # GSD Runtime (per GSD v2 team collaboration best practices)
 .gsd/auto.lock

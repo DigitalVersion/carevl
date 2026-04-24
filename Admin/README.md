@@ -1,29 +1,29 @@
 # Admin
 
-Thu muc nay danh cho HQ/Admin va tester test luong quan tri.
+Thư mục này dành cho Hub/Admin và tester kiểm thử luồng quản trị.
 
-Nguyen tac:
+## Nguyên tắc
 
-- Day la khu vuc `admin tools`
-- Khong dung de nhap lieu hang ngay nhu tram
-- Day la noi xu ly danh sach tram, config, checklist va aggregate snapshot
+- Đây là khu vực của `admin tools`
+- Không dùng để nhập liệu hằng ngày như tại trạm
+- Đây là nơi xử lý danh sách trạm, cấu hình, checklist và aggregate dữ liệu
 
-## Test scope
+## Phạm vi kiểm thử
 
-Test trong thu muc nay gom:
+Trong thư mục này, có thể test:
 
-- Kiem tra danh sach tram
-- Tao `stations.json` tu CSV
-- Export onboarding checklist
-- Gom aggregate snapshot du lieu toan he thong
-- Doc tai lieu van hanh va nghiep vu admin
+- kiểm tra danh sách trạm
+- tạo `stations.json` từ CSV
+- xuất onboarding checklist
+- gom aggregate dữ liệu toàn hệ thống
+- đọc tài liệu vận hành và nghiệp vụ admin
 
-Khong test trong thu muc nay:
+Không test tại đây:
 
-- CRUD ho so hang ngay cua tram
-- Nhanh user flow thong thuong
+- CRUD hồ sơ hằng ngày của trạm
+- luồng người dùng thông thường
 
-## File de dung
+## Các file thường dùng
 
 - `Launch-Admin-App.bat`
 - `Check-Stations.bat`
@@ -31,12 +31,12 @@ Khong test trong thu muc nay:
 - `Export-Onboarding-Checklist.bat`
 - `Aggregate-System-Data.bat`
 
-## Tai lieu lien quan
+## Tài liệu liên quan
 
 - `../HUONG_DAN_ADMIN.md`
 - `../QUY_CHE_VAN_HANH.md`
 
-## Quy uoc cho tester
+## Gợi ý cho tester
 
-- Neu dang test nghiep vu tram thi vao `Onboarding/`
-- Neu dang test nghiep vu admin thi vao `Admin/`
+- Nếu đang test nghiệp vụ của trạm, chuyển sang `Onboarding/`
+- Nếu đang test nghiệp vụ quản trị, ở lại `Admin/`

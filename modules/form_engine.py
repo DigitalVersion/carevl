@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import re
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, Optional, Set, Tuple
 import customtkinter as ctk
 from ui.design_tokens import (
     BORDER,
@@ -16,6 +16,32 @@ from ui.design_tokens import (
     font,
 )
 
+SECTION_UI_META = {
+    "demographics": {
+        "resource": "Patient",
+        "description": "Thong tin dinh danh va hanh chinh cua benh nhan.",
+    },
+    "clinical": {
+        "resource": "Observation",
+        "description": "Chi so kham lam sang va dau hieu sinh ton.",
+    },
+    "laboratory": {
+        "resource": "Observation",
+        "description": "Chi so xet nghiem hoac sang loc can theo doi.",
+    },
+    "conclusion": {
+        "resource": "Assessment",
+        "description": "Nhan dinh bac si, phan loai va thong tin luot kham.",
+    },
+}
+
+PRIORITY_FIELD_IDS = {
+    "demographics": {"ho_ten", "ngay_sinh", "gioi_tinh", "ma_dinh_danh"},
+    "clinical": {"huyet_ap", "huyet_ap_tam_thu", "huyet_ap_tam_truong", "mach", "nhip_tim", "can_nang", "chieu_cao"},
+    "laboratory": {"duong_huyet_doi", "cholesterol", "nuoc_tieu"},
+    "conclusion": {"phan_loai_sk", "ket_luan", "bac_si", "ngay_kham"},
+}
+
 
 class FormEngine:
     """
@@ -28,6 +54,7 @@ class FormEngine:
         self.parent = parent
         self.field_widgets: Dict[Tuple[str, str], Dict[str, Any]] = {}
         self.section_frames: Dict[str, ctk.CTkFrame] = {}
+        self.computed_dependencies: Dict[Tuple[str, str], Set[str]] = {}
         self.default_border_color = BORDER
         
         self._render()
@@ -39,8 +66,8 @@ class FormEngine:
         for section in sections:
             section_id = section.get("id", "")
             section_label = section.get("label", section_id)
+            section_meta = SECTION_UI_META.get(section_id, {})
             
-            # Create section frame
             section_frame = ctk.CTkFrame(
                 self.parent,
                 fg_color=SURFACE,
@@ -49,47 +76,167 @@ class FormEngine:
                 border_color=BORDER,
             )
             section_frame.pack(fill="x", padx=14, pady=10)
+            section_frame.grid_columnconfigure(0, weight=1)
             section_frame.grid_columnconfigure(1, weight=1)
             
             self.section_frames[section_id] = section_frame
             
-            # Section header
             header_row = ctk.CTkFrame(section_frame, fg_color="transparent")
             header_row.grid(row=0, column=0, columnspan=2, sticky="ew", padx=16, pady=(14, 8))
             header_row.grid_columnconfigure(0, weight=1)
+            header_row.grid_columnconfigure(1, weight=0)
+            header_row.grid_columnconfigure(2, weight=0)
+
+            title_block = ctk.CTkFrame(header_row, fg_color="transparent")
+            title_block.grid(row=0, column=0, sticky="w")
 
             header = ctk.CTkLabel(
-                header_row,
+                title_block,
                 text=section_label,
                 font=font(16, "bold"),
                 anchor="w",
                 text_color=TEXT_PRIMARY,
             )
-            header.grid(row=0, column=0, sticky="w")
+            header.pack(anchor="w")
 
-            field_count = len(section.get("fields", []))
+            description = section_meta.get("description", "")
+            if description:
+                ctk.CTkLabel(
+                    title_block,
+                    text=description,
+                    font=font(12),
+                    anchor="w",
+                    text_color=TEXT_MUTED,
+                ).pack(anchor="w", pady=(2, 0))
+
+            resource_label = section_meta.get("resource", "")
+            if resource_label:
+                ctk.CTkLabel(
+                    header_row,
+                    text=resource_label,
+                    font=font(11, "semibold"),
+                    text_color=PRIMARY_BLUE_TEXT,
+                    fg_color=PRIMARY_BLUE_SOFT,
+                    corner_radius=10,
+                    padx=10,
+                    pady=4,
+                ).grid(row=0, column=1, sticky="e", padx=(8, 8))
+
             ctk.CTkLabel(
                 header_row,
-                text=f"{field_count} trường",
+                text=f"{len(section.get('fields', []))} truong",
                 font=font(11, "semibold"),
                 text_color=PRIMARY_BLUE_TEXT,
                 fg_color=PRIMARY_BLUE_SOFT,
                 corner_radius=10,
                 padx=10,
                 pady=4,
-            ).grid(row=0, column=1, sticky="e")
+            ).grid(row=0, column=2, sticky="e")
             
-            # Render fields
             fields = section.get("fields", [])
-            for idx, field in enumerate(fields):
-                self._render_field(section_frame, section_id, field, idx + 1)
+            priority_fields, follow_up_fields = self._split_priority_fields(section_id, fields)
+            current_row = 1
+            current_col = 0
+            if priority_fields:
+                current_row, current_col = self._render_field_group(
+                    section_frame,
+                    section_id,
+                    priority_fields,
+                    current_row,
+                    current_col,
+                    "Nhap truoc",
+                    "Cac truong can co de luu nhanh luot kham tai tram.",
+                )
+
+            if follow_up_fields:
+                current_row, current_col = self._render_field_group(
+                    section_frame,
+                    section_id,
+                    follow_up_fields,
+                    current_row,
+                    current_col,
+                    "Bo sung sau",
+                    "Hoan thien them thong tin chi tiet neu co thoi gian hoac du lieu.",
+                )
+
+    def _split_priority_fields(self, section_id: str, fields: list[Dict[str, Any]]) -> tuple[list[Dict[str, Any]], list[Dict[str, Any]]]:
+        priority_ids = PRIORITY_FIELD_IDS.get(section_id, set())
+        priority_fields = []
+        follow_up_fields = []
+        for field in fields:
+            field_id = field.get("id", "")
+            if field.get("required", False) or field_id in priority_ids:
+                priority_fields.append(field)
+            else:
+                follow_up_fields.append(field)
+        return priority_fields, follow_up_fields
+
+    def _render_field_group(
+        self,
+        parent: ctk.CTkFrame,
+        section_id: str,
+        fields: list[Dict[str, Any]],
+        current_row: int,
+        current_col: int,
+        title: str,
+        description: str,
+    ) -> tuple[int, int]:
+        group_row = ctk.CTkFrame(parent, fg_color="transparent")
+        group_row.grid(row=current_row, column=0, columnspan=2, sticky="ew", padx=16, pady=(2, 8))
+        group_row.grid_columnconfigure(0, weight=1)
+        ctk.CTkLabel(
+            group_row,
+            text=title,
+            font=font(13, "bold"),
+            text_color=TEXT_PRIMARY,
+            anchor="w",
+        ).grid(row=0, column=0, sticky="w")
+        ctk.CTkLabel(
+            group_row,
+            text=description,
+            font=font(11),
+            text_color=TEXT_MUTED,
+            anchor="w",
+        ).grid(row=1, column=0, sticky="w", pady=(2, 0))
+        current_row += 1
+        current_col = 0
+
+        for field in fields:
+            field_type = field.get("type", "text")
+            column_span = 2 if field_type == "textarea" else 1
+
+            if column_span == 2 and current_col == 1:
+                current_row += 1
+                current_col = 0
+
+            self._render_field(
+                parent,
+                section_id,
+                field,
+                current_row,
+                current_col,
+                column_span,
+            )
+
+            if column_span == 2:
+                current_row += 1
+                current_col = 0
+            else:
+                if current_col == 0:
+                    current_col = 1
+                else:
+                    current_col = 0
+                    current_row += 1
+        return current_row, current_col
     
     def _render_field(
         self,
         parent: ctk.CTkFrame,
         section_id: str,
         field: Dict[str, Any],
-        row: int
+        row: int,
+        column: int,
+        column_span: int,
     ) -> None:
         """Render a single field based on its type."""
         field_id = field.get("id", "")
@@ -97,17 +244,26 @@ class FormEngine:
         field_type = field.get("type", "text")
         required = field.get("required", False)
         
-        # Label with required indicator
+        field_frame = ctk.CTkFrame(parent, fg_color="transparent")
+        field_frame.grid(
+            row=row,
+            column=column,
+            columnspan=column_span,
+            sticky="nsew",
+            padx=(16, 8) if column == 0 else (8, 16),
+            pady=8,
+        )
+        field_frame.grid_columnconfigure(0, weight=1)
+
         label_text = f"{field_label} {'*' if required else ''}"
-        label = ctk.CTkLabel(parent, text=label_text, anchor="w", text_color=TEXT_PRIMARY, font=font(13, "semibold"))
-        label.grid(row=row, column=0, sticky="w", padx=(16, 12), pady=7)
+        label = ctk.CTkLabel(field_frame, text=label_text, anchor="w", text_color=TEXT_PRIMARY, font=font(13, "semibold"))
+        label.grid(row=0, column=0, sticky="w", pady=(0, 6))
         
         widget_key = (section_id, field_id)
         
-        # Create widget based on type
         if field_type == "text":
-            widget = ctk.CTkEntry(parent, width=300, height=38, fg_color=INPUT_BG, border_color=BORDER, text_color=TEXT_PRIMARY, font=font(14))
-            widget.grid(row=row, column=1, sticky="ew", padx=(0, 16), pady=7)
+            widget = ctk.CTkEntry(field_frame, width=300, height=38, fg_color=INPUT_BG, border_color=BORDER, text_color=TEXT_PRIMARY, font=font(14))
+            widget.grid(row=1, column=0, sticky="ew")
             self.field_widgets[widget_key] = {
                 "widget": widget,
                 "type": "text",
@@ -115,8 +271,8 @@ class FormEngine:
             }
         
         elif field_type == "number":
-            widget = ctk.CTkEntry(parent, width=300, height=38, fg_color=INPUT_BG, border_color=BORDER, text_color=TEXT_PRIMARY, font=font(14))
-            widget.grid(row=row, column=1, sticky="ew", padx=(0, 16), pady=7)
+            widget = ctk.CTkEntry(field_frame, width=300, height=38, fg_color=INPUT_BG, border_color=BORDER, text_color=TEXT_PRIMARY, font=font(14))
+            widget.grid(row=1, column=0, sticky="ew")
             self.field_widgets[widget_key] = {
                 "widget": widget,
                 "type": "number",
@@ -124,8 +280,8 @@ class FormEngine:
             }
         
         elif field_type == "date":
-            widget = ctk.CTkEntry(parent, width=300, height=38, placeholder_text="DD-MM-YYYY", fg_color=INPUT_BG, border_color=BORDER, text_color=TEXT_PRIMARY, font=font(14), placeholder_text_color=TEXT_MUTED)
-            widget.grid(row=row, column=1, sticky="ew", padx=(0, 16), pady=7)
+            widget = ctk.CTkEntry(field_frame, width=300, height=38, placeholder_text="DD-MM-YYYY", fg_color=INPUT_BG, border_color=BORDER, text_color=TEXT_PRIMARY, font=font(14), placeholder_text_color=TEXT_MUTED)
+            widget.grid(row=1, column=0, sticky="ew")
             self.field_widgets[widget_key] = {
                 "widget": widget,
                 "type": "date",
@@ -135,7 +291,7 @@ class FormEngine:
         elif field_type == "select":
             options = field.get("options", [])
             widget = ctk.CTkComboBox(
-                parent,
+                field_frame,
                 values=options,
                 width=300,
                 height=38,
@@ -149,7 +305,7 @@ class FormEngine:
             )
             if options:
                 widget.set("")  # Start with empty selection
-            widget.grid(row=row, column=1, sticky="ew", padx=(0, 16), pady=7)
+            widget.grid(row=1, column=0, sticky="ew")
             self.field_widgets[widget_key] = {
                 "widget": widget,
                 "type": "select",
@@ -157,8 +313,8 @@ class FormEngine:
             }
         
         elif field_type == "textarea":
-            widget = ctk.CTkTextbox(parent, width=300, height=92, fg_color=INPUT_BG, border_color=BORDER, border_width=1, text_color=TEXT_PRIMARY, font=font(14))
-            widget.grid(row=row, column=1, sticky="ew", padx=(0, 16), pady=7)
+            widget = ctk.CTkTextbox(field_frame, width=300, height=88, fg_color=INPUT_BG, border_color=BORDER, border_width=1, text_color=TEXT_PRIMARY, font=font(14))
+            widget.grid(row=1, column=0, sticky="ew")
             self.field_widgets[widget_key] = {
                 "widget": widget,
                 "type": "textarea",
@@ -168,8 +324,8 @@ class FormEngine:
         elif field_type == "computed":
             # Computed fields are read-only labels
             widget = ctk.CTkLabel(
-                parent,
-                text="",
+                field_frame,
+                text="Chưa có dữ liệu",
                 anchor="w",
                 fg_color=SURFACE_TINT,
                 text_color=PRIMARY_BLUE_TEXT,
@@ -178,14 +334,16 @@ class FormEngine:
                 pady=8,
                 font=font(14, "semibold"),
             )
-            widget.grid(row=row, column=1, sticky="ew", padx=(0, 16), pady=7)
+            widget.grid(row=1, column=0, sticky="ew")
+            formula = field.get("formula", "")
             self.field_widgets[widget_key] = {
                 "widget": widget,
                 "type": "computed",
                 "label": label,
-                "formula": field.get("formula", ""),
+                "formula": formula,
                 "is_label_only": True
             }
+            self.computed_dependencies[widget_key] = self._extract_formula_dependencies(formula)
     
     def get_values(self) -> Dict[str, Dict[str, Any]]:
         """
@@ -193,89 +351,109 @@ class FormEngine:
         Returns: {"section_id": {"field_id": value}}
         """
         data: Dict[str, Dict[str, Any]] = {}
-        
-        for (section_id, field_id), widget_info in self.field_widgets.items():
-            widget = widget_info.get("widget")
-            widget_type = widget_info.get("type")
-            
-            if widget_type == "computed":
-                # Skip computed fields - they are derived
-                continue
-            
-            value = None
-            
-            if widget_type in ("text", "number", "date"):
-                value = widget.get()
-            elif widget_type == "select":
-                value = widget.get()
-            elif widget_type == "textarea":
-                value = widget.get("1.0", "end-1c")
-            
-            # Initialize section dict if needed
-            if section_id not in data:
-                data[section_id] = {}
-            
-            # Store value (even if empty)
-            data[section_id][field_id] = value if value else ""
+        section_ids = {section_id for section_id, _ in self.field_widgets.keys()}
+        for section_id in section_ids:
+            data[section_id] = self._get_section_values(section_id)
         
         # Compute derived fields and update display
         self._compute_fields(data, update_display=True)
         
         return data
+
+    def _get_widget_value(self, widget_info: Dict[str, Any]) -> str:
+        widget = widget_info.get("widget")
+        widget_type = widget_info.get("type")
+
+        if widget_type in ("text", "number", "date", "select"):
+            return widget.get() or ""
+        if widget_type == "textarea":
+            return widget.get("1.0", "end-1c") or ""
+        return ""
+
+    def _get_section_values(self, section_id: str) -> Dict[str, Any]:
+        section_data: Dict[str, Any] = {}
+        for (current_section_id, field_id), widget_info in self.field_widgets.items():
+            if current_section_id != section_id or widget_info.get("type") == "computed":
+                continue
+            section_data[field_id] = self._get_widget_value(widget_info)
+        return section_data
+
+    def _extract_formula_dependencies(self, formula: str) -> Set[str]:
+        if not formula:
+            return set()
+        tokens = re.findall(r"[A-Za-z_][A-Za-z0-9_]*", formula)
+        return set(tokens)
+
+    def refresh_computed_for_field(self, section_id: str, field_id: str) -> None:
+        section_data = self._get_section_values(section_id)
+        for (computed_section_id, computed_field_id), widget_info in self.field_widgets.items():
+            if computed_section_id != section_id or widget_info.get("type") != "computed":
+                continue
+            dependencies = self.computed_dependencies.get((computed_section_id, computed_field_id), set())
+            if field_id not in dependencies:
+                continue
+
+            data = {section_id: dict(section_data)}
+            self._compute_single_field(section_id, computed_field_id, data, update_display=True)
+
+    def refresh_all_computed(self) -> None:
+        section_ids = {section_id for section_id, _ in self.field_widgets.keys()}
+        data = {section_id: self._get_section_values(section_id) for section_id in section_ids}
+        self._compute_fields(data, update_display=True)
     
     def _compute_fields(self, data: Dict[str, Dict[str, Any]], update_display: bool = False) -> None:
         """Compute values for computed fields based on formulas."""
         for (section_id, field_id), widget_info in self.field_widgets.items():
             if widget_info.get("type") != "computed":
                 continue
-            
-            formula = widget_info.get("formula", "")
-            if not formula:
-                continue
-            
-            try:
-                # Simple formula evaluation for BMI: can_nang / (chieu_cao/100)^2
-                # Extract field references from formula
-                section_data = data.get(section_id, {})
-                
-                # Replace field_id references with actual values
-                eval_formula = formula
-                for other_field_id, value in section_data.items():
-                    if other_field_id in formula:
-                        try:
-                            num_value = float(value) if value else 0
-                            eval_formula = eval_formula.replace(other_field_id, str(num_value))
-                        except (ValueError, TypeError):
-                            eval_formula = eval_formula.replace(other_field_id, "0")
-                
-                # Replace ^ with ** for Python exponentiation
-                eval_formula = eval_formula.replace("^", "**")
-                
-                # Safely evaluate
-                result = eval(eval_formula, {"__builtins__": {}}, {})
-                computed_value = f"{result:.1f}" if isinstance(result, (int, float)) else str(result)
-                
-                # Store in data
-                if section_id not in data:
-                    data[section_id] = {}
-                data[section_id][field_id] = computed_value
-                
-                # Update display widget if requested
-                if update_display:
-                    widget = widget_info.get("widget")
-                    if widget and computed_value:
-                        widget.configure(text=computed_value)
-                
-            except Exception:
-                # If computation fails, leave empty
-                if section_id not in data:
-                    data[section_id] = {}
-                data[section_id][field_id] = ""
-                
-                if update_display:
-                    widget = widget_info.get("widget")
-                    if widget:
-                        widget.configure(text="")
+            self._compute_single_field(section_id, field_id, data, update_display=update_display)
+
+    def _compute_single_field(
+        self,
+        section_id: str,
+        field_id: str,
+        data: Dict[str, Dict[str, Any]],
+        *,
+        update_display: bool = False,
+    ) -> None:
+        widget_info = self.field_widgets.get((section_id, field_id), {})
+        formula = widget_info.get("formula", "")
+        if not formula:
+            return
+
+        try:
+            section_data = data.get(section_id, {})
+            eval_formula = formula
+            dependencies = self.computed_dependencies.get((section_id, field_id), set())
+            for dependency in dependencies:
+                value = section_data.get(dependency, "")
+                try:
+                    numeric_value = float(value) if value not in ("", None) else 0
+                except (ValueError, TypeError):
+                    numeric_value = 0
+                eval_formula = re.sub(rf"\b{re.escape(dependency)}\b", str(numeric_value), eval_formula)
+
+            eval_formula = eval_formula.replace("^", "**")
+            result = eval(eval_formula, {"__builtins__": {}}, {})
+            computed_value = f"{result:.1f}" if isinstance(result, (int, float)) else str(result)
+
+            if section_id not in data:
+                data[section_id] = {}
+            data[section_id][field_id] = computed_value
+
+            if update_display:
+                widget = widget_info.get("widget")
+                if widget:
+                    widget.configure(text=self._format_computed_display(field_id, computed_value))
+        except Exception:
+            if section_id not in data:
+                data[section_id] = {}
+            data[section_id][field_id] = ""
+
+            if update_display:
+                widget = widget_info.get("widget")
+                if widget:
+                    widget.configure(text="Chưa có dữ liệu")
     
     def set_values(self, data: Dict[str, Dict[str, Any]]) -> None:
         """
@@ -302,10 +480,31 @@ class FormEngine:
                     widget.delete("1.0", "end")
                     widget.insert("1.0", str(value))
                 elif widget_type == "computed":
-                    widget.configure(text=str(value))
+                    widget.configure(text=self._format_computed_display(field_id, str(value)))
             except Exception:
                 # Skip widget if setting value fails
                 pass
+        self.refresh_all_computed()
+
+    def _format_computed_display(self, field_id: str, value: str) -> str:
+        if not value:
+            return "Chưa có dữ liệu"
+        if field_id != "bmi":
+            return str(value)
+        try:
+            bmi = float(value)
+        except (TypeError, ValueError):
+            return str(value)
+
+        if bmi < 18.5:
+            status = "Gầy"
+        elif bmi < 25:
+            status = "Bình thường"
+        elif bmi < 30:
+            status = "Thừa cân"
+        else:
+            status = "Béo"
+        return f"{bmi:.1f}  |  {status}"
     
     def highlight_errors(self, errors: list[Dict[str, str]]) -> None:
         """

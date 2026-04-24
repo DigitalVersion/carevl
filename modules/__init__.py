@@ -7,8 +7,12 @@ def __getattr__(name):
     
     core_modules = {
         "auth": "modules.auth",
+        "app_update": "modules.app_update",
         "config_loader": "modules.config_loader", 
         "crud": "modules.crud",
+        "crud_phase2": "modules.crud_phase2",
+        "import_service": "modules.import_service",
+        "record_store": "modules.record_store",
         "form_engine": "modules.form_engine",
         "paths": "modules.paths",
         "sync": "modules.sync",
@@ -25,8 +29,12 @@ def __getattr__(name):
 
 __all__ = [
     "auth",
+    "app_update",
     "config_loader", 
     "crud",
+    "crud_phase2",
+    "import_service",
+    "record_store",
     "form_engine",
     "paths",
     "sync",

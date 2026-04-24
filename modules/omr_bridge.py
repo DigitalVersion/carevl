@@ -1,14 +1,14 @@
 """
 OMR Bridge - Map OMR results to CareVL record format.
 
-Maps OMRChecker output to the standard record format used by crud.py.
+Maps OMRChecker output to the standard record format used by the active record store.
 """
 
 import json
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from modules import config_loader, validator, crud
+from modules import config_loader, validator, record_store as crud
 
 
 _field_mapping = {

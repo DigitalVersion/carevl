@@ -6,12 +6,15 @@ from typing import Any, Callable, Dict, List, Optional
 import customtkinter as ctk
 from tksheet import Sheet
 
-from modules import crud
+from modules import config_loader
+from modules import record_store as crud
 from modules import sync as sync_module
 from ui.design_tokens import (
     BG_APP,
     BORDER,
     BORDER_STRONG,
+    DANGER_BG,
+    DANGER_TEXT,
     PRIMARY_BLUE,
     PRIMARY_BLUE_SOFT,
     PRIMARY_BLUE_TEXT,
@@ -25,22 +28,17 @@ from ui.design_tokens import (
     TEXT_SECONDARY,
     WARNING_BG,
     WARNING_TEXT,
-    badge_colors,
-    destructive_button_style,
     font,
     primary_button_style,
     secondary_button_style,
 )
-from ui.ui_components import add_modal_actions, add_modal_header, create_modal
+from ui.terms import SYNC_TO_HUB_LABEL, HUB_LABEL
+from ui.ui_components import add_modal_actions, add_modal_header, create_modal, status_badge
 
 
 FILTER_ALL = "all"
 FILTER_PENDING = "pending"
 FILTER_SYNCED = "synced"
-AUTHOR_NAME = "Nguyễn Minh Phát"
-AUTHOR_TITLE = "MSc Medical Sciences"
-AUTHOR_GITHUB_URL = "https://github.com/kanazawahere"
-AUTHOR_EMAIL = "kanazawahere@gmail.com"
 
 
 class ScreenList(ctk.CTkFrame):
@@ -53,7 +51,6 @@ class ScreenList(ctk.CTkFrame):
         on_create_record: Callable[[], None],
         on_view_record: Callable[[str, str], None],
         on_sync: Callable[[], None],
-        on_logout: Callable[[], None],
         on_switch_branch: Optional[Callable[[str], None]] = None,
         **kwargs
     ):
@@ -66,11 +63,11 @@ class ScreenList(ctk.CTkFrame):
         self.on_create_record = on_create_record
         self.on_view_record = on_view_record
         self.on_sync = on_sync
-        self.on_logout = on_logout
         self.on_switch_branch = on_switch_branch
 
         self.all_records: List[Dict[str, Any]] = []
         self.records: List[Dict[str, Any]] = []
+        self.selected_record: Optional[Dict[str, Any]] = None
         self.current_month_year: str = datetime.datetime.now().strftime("%m-%Y")
         self.current_filter: str = FILTER_ALL
         self.default_table_font = ("Segoe UI", 12, "normal")
@@ -78,18 +75,17 @@ class ScreenList(ctk.CTkFrame):
         self.default_index_font = ("Segoe UI", 12, "normal")
         self.default_row_height = 30
         self.default_header_height = 30
-        self.account_menu: Optional[ctk.CTkToplevel] = None
         self.station_selector: Optional[ctk.CTkComboBox] = None
+        self.branch_lock_label: Optional[ctk.CTkLabel] = None
 
         self.station_choices = sync_module.get_all_stations()
         self.branch_title_map = {
             item.get("branch_name", ""): item.get("title", item.get("branch_name", ""))
             for item in self.station_choices
         }
-        self.title_branch_map = {
-            item.get("title", item.get("branch_name", "")): item.get("branch_name", "")
-            for item in self.station_choices
-        }
+        self.station_display_values: List[str] = []
+        self.title_branch_map: Dict[str, str] = {}
+        self.package_label_map = self._build_package_label_map()
 
         self._setup_ui()
         self.load_records()
@@ -97,7 +93,7 @@ class ScreenList(ctk.CTkFrame):
         self.bind("<Configure>", lambda e: self._on_resize())
 
     def _setup_ui(self):
-        self.grid_rowconfigure(4, weight=1)
+        self.grid_rowconfigure(2, weight=1)
         self.grid_columnconfigure(0, weight=1)
 
         top_frame = ctk.CTkFrame(self, fg_color="transparent")
@@ -105,28 +101,22 @@ class ScreenList(ctk.CTkFrame):
         top_frame.grid_columnconfigure(1, weight=1)
         top_frame.grid_columnconfigure(2, weight=1)
 
-        station_title = self._get_station_title_for_branch(self.current_branch)
         title_group = ctk.CTkFrame(top_frame, fg_color="transparent")
         title_group.grid(row=0, column=0, padx=(0, 20), sticky="w")
 
-        context_badge_text = "HQ / Admin" if self.is_admin else "Trạm y tế"
-        context_fg, context_text = badge_colors("info")
         ctk.CTkLabel(
             title_group,
-            text=context_badge_text,
-            fg_color=context_fg,
-            text_color=context_text,
-            corner_radius=9,
-            padx=10,
-            pady=4,
-            font=font(11, "semibold"),
+            text="Danh sách lượt khám",
+            font=font(24, "bold"),
+            text_color=TEXT_PRIMARY,
+            anchor="w",
         ).pack(anchor="w")
 
         if self.is_admin and self.station_choices:
-            station_values = [item.get("title", item.get("branch_name", "")) for item in self.station_choices]
+            self._refresh_station_display_values()
             self.station_selector = ctk.CTkComboBox(
                 title_group,
-                values=station_values,
+                values=self.station_display_values,
                 command=self._on_station_switch_requested,
                 width=340,
                 font=font(20, "bold"),
@@ -138,11 +128,30 @@ class ScreenList(ctk.CTkFrame):
                 fg_color=SURFACE,
                 text_color=TEXT_PRIMARY,
             )
-            self.station_selector.set(station_title)
-            self.station_selector.pack(anchor="w", pady=(8, 0))
+            self.station_selector.set(self._get_station_display_value(self.current_branch))
+            self.station_selector.pack(anchor="w", pady=(10, 0))
         else:
-            title = ctk.CTkLabel(title_group, text=station_title, font=font(24, "bold"), text_color=TEXT_PRIMARY)
+            title = ctk.CTkLabel(
+                title_group,
+                text="Theo dõi bệnh nhân, lượt khám và trạng thái liên thông trong tháng.",
+                font=font(13),
+                text_color=TEXT_SECONDARY,
+                anchor="w",
+            )
             title.pack(anchor="w", pady=(8, 0))
+
+        if self.is_admin:
+            self.branch_lock_label = ctk.CTkLabel(
+                title_group,
+                text="---",
+                justify="left",
+                anchor="w",
+                corner_radius=10,
+                padx=10,
+                pady=5,
+                font=font(12, "semibold"),
+            )
+            self.branch_lock_label.pack(anchor="w", pady=(8, 0))
 
         center_controls = ctk.CTkFrame(top_frame, fg_color="transparent")
         center_controls.grid(row=0, column=1, sticky="ew", padx=(0, 12))
@@ -185,7 +194,7 @@ class ScreenList(ctk.CTkFrame):
 
         self.search_entry = ctk.CTkEntry(
             right_controls,
-            placeholder_text="Tìm kiếm hồ sơ...",
+            placeholder_text="Tìm bệnh nhân / định danh...",
             width=220,
             height=38,
             corner_radius=10,
@@ -198,21 +207,13 @@ class ScreenList(ctk.CTkFrame):
         self.search_entry.pack(side="left", padx=5)
         self.search_entry.bind("<KeyRelease>", lambda e: self._on_search())
 
-        self.account_btn = ctk.CTkButton(
-            right_controls,
-            text=f"{self.username} ▾",
-            command=self._toggle_account_menu,
-            **secondary_button_style(width=160, height=38),
-        )
-        self.account_btn.pack(side="left", padx=(18, 0))
-
         action_frame = ctk.CTkFrame(self, fg_color="transparent")
         action_frame.grid(row=1, column=0, sticky="ew", padx=16, pady=(0, 10))
         action_frame.grid_columnconfigure(1, weight=1)
 
         self.create_btn = ctk.CTkButton(
             action_frame,
-            text="+ Tạo hồ sơ mới",
+            text="+ Thêm lượt khám mới",
             command=self.on_create_record,
             **primary_button_style(width=190, height=44),
         )
@@ -220,7 +221,7 @@ class ScreenList(ctk.CTkFrame):
 
         self.filter_tabs = ctk.CTkSegmentedButton(
             action_frame,
-            values=["Tất cả", "Chờ gửi", "Đã sync"],
+            values=["Tất cả", "Chờ gửi", "Đã đồng bộ"],
             command=self._on_filter_change,
             fg_color=PRIMARY_BLUE_SOFT,
             selected_color=PRIMARY_BLUE,
@@ -236,155 +237,93 @@ class ScreenList(ctk.CTkFrame):
 
         self.sync_btn = ctk.CTkButton(
             action_frame,
-            text="Gửi về HQ",
+            text=SYNC_TO_HUB_LABEL,
             command=self.on_sync,
             **primary_button_style(width=170, height=44),
         )
         self.sync_btn.grid(row=0, column=2, sticky="e", padx=5)
 
-        summary_frame = ctk.CTkFrame(self, fg_color="transparent")
-        summary_frame.grid(row=2, column=0, sticky="ew", padx=16, pady=(0, 12))
-        for col in range(4):
-            summary_frame.grid_columnconfigure(col, weight=1)
-
-        self.summary_total_value = self._build_summary_card(summary_frame, "Tổng hồ sơ", "0", 0)
-        self.summary_synced_value = self._build_summary_card(summary_frame, "Đã sync", "0", 1)
-        self.summary_pending_value = self._build_summary_card(summary_frame, "Chờ gửi", "0", 2)
-        self.summary_month_value = self._build_summary_card(summary_frame, "Tháng làm việc", self.current_month_year, 3)
-
         self.table_container = ctk.CTkFrame(
             self,
-            corner_radius=18,
+            corner_radius=12,
             fg_color=SURFACE,
             border_width=1,
             border_color=BORDER,
         )
-        self.table_container.grid(row=4, column=0, sticky="nsew", padx=16, pady=(0, 8))
-        self.table_container.grid_rowconfigure(0, weight=1)
+        self.table_container.grid(row=2, column=0, sticky="nsew", padx=16, pady=(0, 8))
+        self.table_container.grid_rowconfigure(1, weight=1)
         self.table_container.grid_columnconfigure(0, weight=1)
 
         self._setup_table()
 
         self.empty_state_frame = ctk.CTkFrame(self.table_container, fg_color="transparent")
-        self.empty_state_frame.grid(row=0, column=0)
+        self.empty_state_frame.grid(row=1, column=0)
         self.empty_state_title = ctk.CTkLabel(
             self.empty_state_frame,
-            text="Chưa có hồ sơ phù hợp",
+            text="Chưa có lượt khám phù hợp",
             font=font(24, "bold"),
             text_color=TEXT_PRIMARY,
         )
         self.empty_state_title.pack(pady=(0, 8))
         self.empty_state_body = ctk.CTkLabel(
             self.empty_state_frame,
-            text="Thử đổi tháng, xóa bộ lọc, hoặc bấm 'Tạo hồ sơ mới' để bắt đầu.",
+            text="Thử đổi tháng, xóa bộ lọc, hoặc bấm 'Thêm lượt khám mới' để bắt đầu.",
             justify="center",
             text_color=TEXT_MUTED,
             font=font(14),
         )
         self.empty_state_body.pack()
 
-        self.status_bar = ctk.CTkFrame(
-            self,
-            corner_radius=14,
-            fg_color=SURFACE,
-            height=34,
-            border_width=1,
-            border_color=BORDER,
-        )
-        self.status_bar.grid(row=5, column=0, sticky="ew", padx=0, pady=(4, 0))
-        self.status_bar.grid_columnconfigure(0, weight=1)
-        self.status_bar.grid_propagate(False)
-
-        self.status_line_label = ctk.CTkLabel(
-            self.status_bar,
-            text="---",
-            anchor="w",
-            font=font(12),
-            text_color=TEXT_SECONDARY,
-        )
-        self.status_line_label.grid(row=0, column=0, sticky="ew", padx=(12, 8), pady=4)
-
-        self.status_total_badge = ctk.CTkLabel(
-            self.status_bar,
-            text="Tổng: 0",
-            fg_color=PRIMARY_BLUE_SOFT,
-            corner_radius=10,
-            padx=10,
-            pady=2,
-            font=font(11, "semibold"),
-            text_color=PRIMARY_BLUE_TEXT,
-        )
-        self.status_total_badge.grid(row=0, column=1, padx=(0, 6), pady=3)
-
-        self.status_synced_badge = ctk.CTkLabel(
-            self.status_bar,
-            text="Đã sync: 0",
-            fg_color=SUCCESS_BG,
-            corner_radius=10,
-            padx=10,
-            pady=2,
-            font=font(11, "semibold"),
-            text_color=SUCCESS_TEXT,
-        )
-        self.status_synced_badge.grid(row=0, column=2, padx=(0, 6), pady=3)
-
-        self.status_pending_badge = ctk.CTkLabel(
-            self.status_bar,
-            text="Chờ: 0",
-            fg_color=WARNING_BG,
-            corner_radius=10,
-            padx=10,
-            pady=2,
-            font=font(11, "semibold"),
-            text_color=WARNING_TEXT,
-        )
-        self.status_pending_badge.grid(row=0, column=3, padx=(0, 8), pady=3)
-
-        self.status_author_btn = ctk.CTkButton(
-            self.status_bar,
-            text="Tác giả",
-            command=self._show_author_dialog,
-            **secondary_button_style(width=88, height=24),
-        )
-        self.status_author_btn.grid(row=0, column=4, sticky="e", padx=(0, 8), pady=3)
-
-        self._update_status_banner()
+        self._update_branch_lock_notice()
         self._update_admin_controls()
 
-    def _build_summary_card(self, master, title: str, value: str, column: int) -> ctk.CTkLabel:
-        card = ctk.CTkFrame(
-            master,
-            fg_color=SURFACE,
-            corner_radius=16,
-            border_width=1,
-            border_color=BORDER,
-        )
-        card.grid(row=0, column=column, sticky="ew", padx=(0 if column == 0 else 8, 0))
-        card.grid_columnconfigure(0, weight=1)
-
-        ctk.CTkLabel(
-            card,
-            text=title,
-            text_color=TEXT_MUTED,
-            font=font(12, "semibold"),
-            anchor="w",
-        ).grid(row=0, column=0, sticky="ew", padx=14, pady=(12, 4))
-
-        value_label = ctk.CTkLabel(
-            card,
-            text=value,
-            text_color=TEXT_PRIMARY,
-            font=font(22, "bold"),
-            anchor="w",
-        )
-        value_label.grid(row=1, column=0, sticky="ew", padx=14, pady=(0, 12))
-        return value_label
+    def _build_package_label_map(self) -> Dict[str, str]:
+        template = config_loader.load_template_form()
+        label_map: Dict[str, str] = {}
+        for package in template.get("packages", []):
+            package_id = str(package.get("id", "") or "").strip()
+            if not package_id:
+                continue
+            label_map[package_id] = str(package.get("label", package_id) or package_id).strip()
+        return label_map
 
     def _setup_table(self):
+        table_header = ctk.CTkFrame(self.table_container, fg_color="transparent")
+        table_header.grid(row=0, column=0, sticky="ew", padx=12, pady=(12, 0))
+        table_header.grid_columnconfigure(0, weight=1)
+        table_header.grid_columnconfigure(1, weight=0)
+
+        title_block = ctk.CTkFrame(table_header, fg_color="transparent")
+        title_block.grid(row=0, column=0, sticky="w")
+        ctk.CTkLabel(
+            title_block,
+            text="Bệnh nhân và lượt khám trong tháng",
+            font=font(18, "bold"),
+            text_color=TEXT_PRIMARY,
+            anchor="w",
+        ).pack(anchor="w")
+        self.table_subtitle_label = ctk.CTkLabel(
+            title_block,
+            text="Danh sách lượt khám trong tháng. Double-click vào một dòng để mở lượt khám.",
+            font=font(13),
+            text_color=TEXT_MUTED,
+            anchor="w",
+        )
+        self.table_subtitle_label.pack(anchor="w", pady=(2, 0))
+
+        legend_block = ctk.CTkFrame(table_header, fg_color="transparent")
+        legend_block.grid(row=0, column=1, sticky="e")
+        for text, tone in [
+            ("Đã đồng bộ", "success"),
+            ("Chờ gửi", "warning"),
+            ("Thiếu định danh", "danger"),
+        ]:
+            status_badge(legend_block, text, tone).pack(side="left", padx=(0, 6))
+
         self.sheet = Sheet(
             self.table_container,
-            data=[["", "", "", "", ""]],
-            headers=["#", "Ho ten", "Goi kham", "Ngay kham", "Dong bo"],
+            data=[["", "", "", "", "", ""]],
+            headers=["#", "Bệnh nhân", "Biểu mẫu", "Lượt khám", "Định danh BN", "Liên thông"],
             theme="light blue",
             show_row_index=True,
             adjustable_columns=True,
@@ -393,9 +332,9 @@ class ScreenList(ctk.CTkFrame):
             header_height=self.default_header_height,
             row_height=self.default_row_height,
         )
-        self.sheet.grid(row=0, column=0, sticky="nsew", padx=12, pady=12)
+        self.sheet.grid(row=1, column=0, sticky="nsew", padx=12, pady=12)
         self.sheet.enable_bindings()
-        self.sheet.bind("<ButtonRelease-1>", self._handle_sheet_click)
+        self.sheet.bind("<Double-Button-1>", self._handle_sheet_open)
         self.sheet.bind("<Control-0>", lambda e: self._reset_table_zoom())
         self.sheet.MT.bind("<Control-MouseWheel>", self._handle_table_zoom, add="+")
         self.sheet.MT.bind("<Control-Button-4>", self._handle_table_zoom, add="+")
@@ -407,86 +346,44 @@ class ScreenList(ctk.CTkFrame):
         self.default_table_font = tuple(self.sheet.MT.PAR.ops.table_font)
         self.default_header_font = tuple(self.sheet.MT.PAR.ops.header_font)
         self.default_index_font = tuple(self.sheet.MT.PAR.ops.index_font)
-        self.sheet.set_column_widths([40, 220, 100, 120, 120])
+        self.sheet.set_column_widths([40, 220, 100, 120, 110, 120])
 
-    def _handle_sheet_click(self, event):
+    def _get_selected_row_index(self):
         selected = self.sheet.get_currently_selected()
         if not selected:
-            return
-
-        row_idx = None
+            return None
         if selected.row is not None:
-            row_idx = selected.row
-        elif selected.rows:
-            row_idx = selected.rows[0]
+            return selected.row
+        if selected.rows:
+            return selected.rows[0]
+        return None
 
+    def _handle_sheet_open(self, event):
+        row_idx = self._get_selected_row_index()
         if row_idx is not None and 0 <= row_idx < len(self.records):
-            self._on_row_click(self.records[row_idx])
+            self.selected_record = self.records[row_idx]
+            self._on_row_click(self.selected_record)
 
     def _on_resize(self):
         pass
 
     def _show_help_dialog(self):
         dialog = create_modal(self, "Hướng dẫn sử dụng", "520x400")
-        add_modal_header(dialog, "Hướng dẫn nhanh", "Luồng chuẩn khi làm việc tại trạm là: nhập hồ sơ, kiểm tra bảng, rồi gửi về HQ khi có mạng.")
+        add_modal_header(dialog, "Hướng dẫn nhanh", f"Luồng chuẩn tại Edge là: thêm lượt khám mới, kiểm tra bệnh nhân/lượt khám, rồi liên thông về {HUB_LABEL} khi có mạng.")
 
         body_lines = [
-            "1. Bấm 'Tạo hồ sơ mới' để nhập hồ sơ khám.",
-            "2. Bấm vào một dòng trong bảng để xem hoặc sửa hồ sơ.",
-            "3. Dùng ô tìm kiếm và bộ lọc để tìm nhanh hồ sơ cần xử lý.",
-            "4. '⚠️ Chờ sync' nghĩa là hồ sơ mới lưu trên máy, chưa gửi về HQ.",
-            "5. Khi có mạng, bấm 'Gửi về HQ' để đồng bộ dữ liệu.",
+            "1. Bấm 'Thêm lượt khám mới' để tạo một lượt khám mới cho bệnh nhân.",
+            "2. Double-click vào một dòng để mở lượt khám cần xem hoặc chỉnh sửa.",
+            "3. Dùng ô tìm kiếm và bộ lọc để tìm nhanh bệnh nhân hoặc định danh cần xử lý.",
+            f"4. '⚠️ Chờ liên thông' nghĩa là lượt khám mới lưu trên máy, chưa gửi về {HUB_LABEL}.",
+            f"5. Khi có mạng, bấm '{SYNC_TO_HUB_LABEL}' để liên thông dữ liệu.",
             "6. Nếu bảng bị phóng to hoặc thu nhỏ, bấm 'Đặt lại cỡ bảng'.",
         ]
         if self.is_admin:
-            body_lines.append("7. Admin có thể đổi trạm ở góc trên trái. Nhánh HQ (main) chỉ để xem, không sửa trực tiếp.")
+            body_lines.append(f"7. Admin có thể đổi trạm ở góc trên trái. Workspace {HUB_LABEL} (main) chỉ để xem, không sửa trực tiếp.")
 
         label = ctk.CTkLabel(dialog, text="\n".join(body_lines), justify="left", wraplength=470, text_color=TEXT_SECONDARY, font=font(14))
         label.pack(padx=20, pady=(0, 20), anchor="w")
-
-        tip_box = ctk.CTkFrame(dialog, fg_color=SURFACE_STRONG, corner_radius=12)
-        tip_box.pack(fill="x", padx=20, pady=(0, 18))
-        ctk.CTkLabel(
-            tip_box,
-            text="Mẹo: Có thể dùng Ctrl + scroll để phóng to/thu nhỏ bảng khi cần nhìn rõ hơn.",
-            justify="left",
-            wraplength=450,
-            text_color=TEXT_SECONDARY,
-            font=font(13),
-        ).pack(padx=14, pady=12, anchor="w")
-
-        add_modal_actions(dialog, "Đóng", dialog.destroy)
-
-    def _show_author_dialog(self):
-        dialog = create_modal(self, "Tác giả", "420x240")
-        add_modal_header(dialog, "Tác giả", "Thông tin liên hệ ngắn gọn của người phát triển dự án.")
-
-        ctk.CTkLabel(
-            dialog,
-            text=f"{AUTHOR_NAME}, {AUTHOR_TITLE}",
-            justify="left",
-            anchor="w",
-            text_color=TEXT_PRIMARY,
-            font=font(14),
-        ).pack(fill="x", padx=20, pady=(0, 8))
-
-        ctk.CTkLabel(
-            dialog,
-            text=f"GitHub: {AUTHOR_GITHUB_URL}",
-            justify="left",
-            anchor="w",
-            text_color=TEXT_SECONDARY,
-            font=font(14),
-        ).pack(fill="x", padx=20, pady=(0, 6))
-
-        ctk.CTkLabel(
-            dialog,
-            text=f"Email: {AUTHOR_EMAIL}",
-            justify="left",
-            anchor="w",
-            text_color=TEXT_SECONDARY,
-            font=font(14),
-        ).pack(fill="x", padx=20, pady=(0, 18))
 
         add_modal_actions(dialog, "Đóng", dialog.destroy)
 
@@ -495,62 +392,6 @@ class ScreenList(ctk.CTkFrame):
 
     def _auto_fit_after_zoom(self):
         self._auto_fit_columns()
-
-    def _toggle_account_menu(self):
-        if self.account_menu is not None and self.account_menu.winfo_exists():
-            self._close_account_menu()
-            return
-        self._open_account_menu()
-
-    def _open_account_menu(self):
-        self._close_account_menu()
-
-        menu = ctk.CTkToplevel(self)
-        menu.title("")
-        menu.geometry("190x110")
-        menu.overrideredirect(True)
-        menu.transient(self.winfo_toplevel())
-        menu.attributes("-topmost", True)
-
-        self.update_idletasks()
-        x = self.account_btn.winfo_rootx()
-        y = self.account_btn.winfo_rooty() + self.account_btn.winfo_height() + 6
-        menu.geometry(f"190x110+{x}+{y}")
-
-        panel = ctk.CTkFrame(menu, corner_radius=12, fg_color=SURFACE, border_width=1, border_color=BORDER)
-        panel.pack(fill="both", expand=True)
-
-        ctk.CTkLabel(
-            panel,
-            text=self.username,
-            justify="left",
-            anchor="w",
-            text_color=TEXT_PRIMARY,
-            font=font(14, "semibold"),
-        ).pack(fill="x", padx=12, pady=(10, 8))
-
-        ctk.CTkButton(
-            panel,
-            text="Đăng xuất",
-            command=self._logout_from_menu,
-            **destructive_button_style(height=34),
-        ).pack(fill="x", padx=12, pady=(0, 10))
-
-        menu.bind("<FocusOut>", lambda e: self._close_account_menu())
-        menu.focus_force()
-        self.account_menu = menu
-
-    def _close_account_menu(self):
-        if self.account_menu is not None:
-            try:
-                self.account_menu.destroy()
-            except Exception:
-                pass
-        self.account_menu = None
-
-    def _logout_from_menu(self):
-        self._close_account_menu()
-        self.on_logout()
 
     def _reset_table_zoom(self):
         self.sheet.font(self.default_table_font)
@@ -572,28 +413,40 @@ class ScreenList(ctk.CTkFrame):
                 months.append(m)
         return months
 
-    def _get_sync_text(self) -> str:
-        if self.is_admin:
-            status = sync_module.get_sync_status(branch_name=self.current_branch)
-        else:
-            status = sync_module.get_sync_status(self.username)
-        status_text = status.get("status", "unknown")
-        display_map = {
-            sync_module.SYNCED: "Đã đồng bộ",
-            sync_module.PENDING_PUSH: "Chờ gửi về HQ",
-            sync_module.OFFLINE: "Ngoại tuyến / chưa kiểm tra được",
-        }
-        return display_map.get(status_text, "Không rõ trạng thái")
+    def _update_branch_lock_notice(self) -> None:
+        if not self.is_admin or self.branch_lock_label is None:
+            return
 
-    def _update_status_banner(self):
-        station_title = self._get_station_title_for_branch(self.current_branch)
-        if self.station_selector is not None:
-            self.station_selector.set(station_title)
-        sync_text = self._get_sync_text()
-        branch_text = self.current_branch or "unknown"
-        prefix = "HQ" if self._is_protected_branch() else "Trạm"
-        status_text = f"{prefix}: {station_title}   |   Nhánh: {branch_text}   |   Đồng bộ: {sync_text}   |   Người dùng: {self.username}"
-        self.status_line_label.configure(text=status_text)
+        branch_status = sync_module.get_branch_machine_status(branch_name=self.current_branch)
+        if not branch_status.get("owner_exists"):
+            self.branch_lock_label.configure(
+                text="Máy giữ nhánh: Chưa khóa. Lần lưu hồ sơ kế tiếp sẽ gắn nhánh này với máy hiện tại.",
+                fg_color=WARNING_BG,
+                text_color=WARNING_TEXT,
+            )
+            return
+
+        if not branch_status.get("ok"):
+            owner = branch_status.get("owner", {})
+            owner_host = str(owner.get("hostname", "") or "máy khác")
+            owner_user = str(owner.get("os_user", "") or owner.get("app_user", "") or "").strip()
+            owner_suffix = f" ({owner_user})" if owner_user else ""
+            self.branch_lock_label.configure(
+                text=f"Máy giữ nhánh: {owner_host}{owner_suffix}. Admin chỉ nên xem, không dùng song song trên máy này.",
+                fg_color=DANGER_BG,
+                text_color=DANGER_TEXT,
+            )
+            return
+
+        owner = branch_status.get("owner", {})
+        owner_host = str(owner.get("hostname", "") or branch_status["local_device"].get("hostname", "máy hiện tại"))
+        updated_at = str(owner.get("updated_at", "") or owner.get("claimed_at", "") or "").strip()
+        updated_suffix = f" | cập nhật {updated_at}" if updated_at else ""
+        self.branch_lock_label.configure(
+            text=f"Máy giữ nhánh: {owner_host} (máy hiện tại){updated_suffix}",
+            fg_color=SUCCESS_BG,
+            text_color=SUCCESS_TEXT,
+        )
 
     def _on_month_change(self, value: str) -> None:
         self.current_month_year = value
@@ -603,7 +456,7 @@ class ScreenList(ctk.CTkFrame):
         mapping = {
             "Tất cả": FILTER_ALL,
             "Chờ gửi": FILTER_PENDING,
-            "Đã sync": FILTER_SYNCED,
+            "Đã đồng bộ": FILTER_SYNCED,
         }
         self.current_filter = mapping.get(value, FILTER_ALL)
         self._apply_filters_and_render()
@@ -619,7 +472,7 @@ class ScreenList(ctk.CTkFrame):
         return records
 
     def load_records(self, records: Optional[List[Dict[str, Any]]] = None) -> None:
-        self.sheet.set_sheet_data([["", "Đang tải...", "", "", ""]])
+        self.sheet.set_sheet_data([["", "Đang tải...", "", "", "", ""]])
         self.update()
 
         if records is not None:
@@ -629,12 +482,11 @@ class ScreenList(ctk.CTkFrame):
             self.all_records = crud.search(query, self.current_month_year)
 
         self._apply_filters_and_render()
-        self._update_status_banner()
+        self._update_branch_lock_notice()
 
     def _apply_filters_and_render(self):
         self.records = self._filter_records(self.all_records)
         self._render_table()
-        self._update_stats()
         self._update_sync_button()
         self._update_admin_controls()
 
@@ -644,28 +496,39 @@ class ScreenList(ctk.CTkFrame):
         if data:
             self.sheet.set_sheet_data(data)
             self.empty_state_frame.grid_remove()
+            if self.selected_record:
+                selected_id = self.selected_record.get("id")
+                self.selected_record = next((record for record in self.records if record.get("id") == selected_id), self.records[0])
+            else:
+                self.selected_record = self.records[0]
         else:
-            self.sheet.set_sheet_data([["", "", "", "", ""]])
-            self.empty_state_title.configure(text="Chưa có hồ sơ phù hợp")
+            self.sheet.set_sheet_data([["", "", "", "", "", ""]])
+            self.empty_state_title.configure(text="Chưa có lượt khám phù hợp")
             self.empty_state_body.configure(
-                text="Thử đổi tháng, đổi bộ lọc hoặc bấm 'Tạo hồ sơ mới' để bắt đầu làm việc."
+                text="Thử đổi tháng, đổi bộ lọc hoặc bấm 'Thêm lượt khám mới' để bắt đầu làm việc."
             )
             self.empty_state_frame.grid()
+            self.selected_record = None
 
         self._auto_fit_columns()
+        self.table_subtitle_label.configure(
+            text=f"{len(self.records)} lượt khám trong {self.current_month_year}. Double-click để mở lượt khám."
+        )
 
     def _record_to_row(self, idx: int, record: Dict[str, Any]) -> List[str]:
         data = record.get("data", {})
 
         package_id = record.get("package_id", "unknown")
+        package_label = self.package_label_map.get(package_id, package_id.upper())
         created_at = record.get("created_at", "")
         date_part = created_at.split(" ")[-1] if created_at else ""
 
         ho_ten = self._get_field_value(data, "demographics", "ho_ten") or "---"
+        identity_badge = self._identity_status_text(record)
         synced = record.get("synced", False)
-        synced_badge = "✅ Đã sync" if synced else "⚠️ Chờ sync"
+        synced_badge = "✅ Đã liên thông" if synced else "⚠️ Chờ liên thông"
 
-        return [str(idx), ho_ten, package_id, date_part, synced_badge]
+        return [str(idx), ho_ten, package_label, date_part, identity_badge, synced_badge]
 
     def _auto_fit_columns(self):
         if not hasattr(self, "sheet") or not self.sheet:
@@ -673,36 +536,70 @@ class ScreenList(ctk.CTkFrame):
         self.sheet.column_width("all", width="text", redraw=False)
         self.sheet.refresh()
 
-    def _update_stats(self):
-        total = len(self.all_records)
-        synced = sum(1 for r in self.all_records if r.get("synced", False))
-        pending = total - synced
+    def _has_missing_identity(self, record: Dict[str, Any]) -> bool:
+        data = record.get("data", {})
+        demographics = data.get("demographics", {}) if isinstance(data, dict) else {}
 
-        self.summary_total_value.configure(text=str(total))
-        self.summary_synced_value.configure(text=str(synced))
-        self.summary_pending_value.configure(text=str(pending))
-        self.summary_month_value.configure(text=self.current_month_year)
-        self.status_total_badge.configure(text=f"Tổng: {total}")
-        self.status_synced_badge.configure(text=f"Đã sync: {synced}")
-        self.status_pending_badge.configure(text=f"Chờ: {pending}")
+        identity_candidates = [
+            demographics.get("ma_dinh_danh"),
+            demographics.get("cccd"),
+            demographics.get("so_cccd"),
+            demographics.get("so_dinh_danh"),
+        ]
+        has_identity = any(str(value or "").strip() for value in identity_candidates)
+
+        vned_candidates = [
+            demographics.get("vned"),
+            demographics.get("ma_vned"),
+            demographics.get("id_vned"),
+        ]
+        has_vned = any(str(value or "").strip() for value in vned_candidates)
+
+        has_vned_field = any(key in demographics for key in ("vned", "ma_vned", "id_vned"))
+        if has_vned_field:
+            return not has_identity or not has_vned
+        return not has_identity
+
+    def _identity_status_text(self, record: Dict[str, Any]) -> str:
+        data = record.get("data", {})
+        demographics = data.get("demographics", {}) if isinstance(data, dict) else {}
+        identity = str(
+            demographics.get("ma_dinh_danh")
+            or demographics.get("cccd")
+            or demographics.get("so_cccd")
+            or demographics.get("so_dinh_danh")
+            or ""
+        ).strip()
+        vned = str(
+            demographics.get("vned")
+            or demographics.get("ma_vned")
+            or demographics.get("id_vned")
+            or ""
+        ).strip()
+
+        if identity and vned:
+            return "✅ CCCD + VNED"
+        if identity:
+            return "◌ CCCD"
+        return "⚠️ Thiếu"
 
     def _update_sync_button(self):
         if self._is_protected_branch():
-            self.sync_btn.configure(text="Nhánh HQ (khóa)", state="disabled", fg_color=SURFACE_STRONG, text_color=TEXT_MUTED)
+            self.sync_btn.configure(text=f"Workspace {HUB_LABEL} (khóa)", state="disabled", fg_color=SURFACE_STRONG, text_color=TEXT_MUTED)
             return
 
         pending = sum(1 for r in self.all_records if not r.get("synced", False))
         if pending > 0:
-            self.sync_btn.configure(text=f"Gửi về HQ ({pending})", state="normal", fg_color=PRIMARY_BLUE, text_color="#FFFFFF")
+            self.sync_btn.configure(text=f"{SYNC_TO_HUB_LABEL} ({pending})", state="normal", fg_color=PRIMARY_BLUE, text_color="#FFFFFF")
         else:
-            self.sync_btn.configure(text="Gửi về HQ", state="normal", fg_color=PRIMARY_BLUE, text_color="#FFFFFF")
+            self.sync_btn.configure(text=SYNC_TO_HUB_LABEL, state="normal", fg_color=PRIMARY_BLUE, text_color="#FFFFFF")
 
     def _on_row_click(self, record: Dict[str, Any]):
         if not record:
             return
 
         if self._is_protected_branch():
-            self.show_error("Nhánh HQ chỉ dùng để xem và tổng hợp. Hãy chuyển sang nhánh trạm trước khi sửa hồ sơ.")
+            self.show_error(f"Workspace {HUB_LABEL} chỉ dùng để xem và tổng hợp. Hãy chuyển sang workspace Edge trước khi sửa hồ sơ.")
             return
 
         record_id = record.get("id", "")
@@ -720,10 +617,6 @@ class ScreenList(ctk.CTkFrame):
         add_modal_header(dialog, "Không thể thực hiện thao tác", message)
         add_modal_actions(dialog, "Đóng", dialog.destroy)
 
-    def destroy(self):
-        self._close_account_menu()
-        super().destroy()
-
     def _is_protected_branch(self) -> bool:
         return self.is_admin and self.current_branch == "main"
 
@@ -737,6 +630,29 @@ class ScreenList(ctk.CTkFrame):
         if branch_name in self.branch_title_map:
             return self.branch_title_map[branch_name]
         return sync_module.get_station_title(branch_name)
+
+    def _refresh_station_display_values(self) -> None:
+        self.station_display_values = []
+        self.title_branch_map = {}
+        for item in self.station_choices:
+            branch_name = item.get("branch_name", "")
+            display_value = self._get_station_display_value(branch_name)
+            self.station_display_values.append(display_value)
+            self.title_branch_map[display_value] = branch_name
+
+    def _get_station_display_value(self, branch_name: str) -> str:
+        title = self._get_station_title_for_branch(branch_name)
+        if not self.is_admin:
+            return title
+
+        branch_status = sync_module.get_branch_machine_status(branch_name=branch_name)
+        if not branch_status.get("owner_exists"):
+            suffix = "[chưa khóa]"
+        elif not branch_status.get("ok"):
+            suffix = "[máy khác giữ]"
+        else:
+            suffix = "[máy hiện tại]"
+        return f"{title} {suffix}"
 
     def _on_station_switch_requested(self, selected_title: str) -> None:
         if not self.is_admin or not self.on_switch_branch:
@@ -778,7 +694,6 @@ def render_list_screen(
     on_create_record: Callable[[], None],
     on_view_record: Callable[[str, str], None],
     on_sync: Callable[[], None],
-    on_logout: Callable[[], None],
     on_switch_branch: Optional[Callable[[str], None]] = None,
 ) -> ScreenList:
     return ScreenList(
@@ -789,6 +704,5 @@ def render_list_screen(
         on_create_record=on_create_record,
         on_view_record=on_view_record,
         on_sync=on_sync,
-        on_logout=on_logout,
         on_switch_branch=on_switch_branch,
     )

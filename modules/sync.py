@@ -1,8 +1,12 @@
 from __future__ import annotations
 
+import datetime
 import json
 import os
+import shutil
+import socket
 import subprocess
+import uuid
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -13,6 +17,10 @@ SYNCED = "synced"
 PENDING_PUSH = "pending_push"
 OFFLINE = "offline"
 DEFAULT_TIMEOUT_SECONDS = 30
+DEVICE_CONFIG_PATH = Path(paths.get_writable_path("config/device_config.json"))
+BRANCH_OWNER_PATH = "config/branch_owner.json"
+BACKUP_DIR = "data/backups"
+DEFAULT_RUNTIME_DB_NAME = "carevl.db"
 
 
 def get_data_repo() -> str:
@@ -139,6 +147,343 @@ def _is_network_error(result: Dict[str, Any]) -> bool:
     return any(marker in haystack for marker in markers)
 
 
+def _now_iso() -> str:
+    return datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+
+def _load_device_config() -> Dict[str, Any]:
+    if not DEVICE_CONFIG_PATH.exists():
+        return {}
+    try:
+        with open(DEVICE_CONFIG_PATH, "r", encoding="utf-8") as f:
+            data = json.load(f)
+            if isinstance(data, dict):
+                return data
+    except (OSError, json.JSONDecodeError):
+        pass
+    return {}
+
+
+def _save_device_config(config: Dict[str, Any]) -> None:
+    DEVICE_CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
+    with open(DEVICE_CONFIG_PATH, "w", encoding="utf-8") as f:
+        json.dump(config, f, ensure_ascii=False, indent=2)
+
+
+def get_machine_identity() -> Dict[str, str]:
+    config = _load_device_config()
+    machine_id = str(config.get("machine_id", "") or "").strip()
+    if not machine_id:
+        machine_id = str(uuid.uuid4())
+        config["machine_id"] = machine_id
+        config["created_at"] = _now_iso()
+        _save_device_config(config)
+
+    hostname = socket.gethostname().strip() or "unknown-host"
+    os_user = (
+        os.environ.get("USERNAME")
+        or os.environ.get("USER")
+        or "unknown-user"
+    )
+    return {
+        "machine_id": machine_id,
+        "hostname": hostname,
+        "os_user": str(os_user).strip(),
+    }
+
+
+def _branch_owner_abspath(*, project_root: Optional[str] = None) -> Path:
+    root = _resolve_project_root(project_root)
+    return root / BRANCH_OWNER_PATH
+
+
+def _load_branch_owner(*, project_root: Optional[str] = None) -> Dict[str, Any]:
+    owner_path = _branch_owner_abspath(project_root=project_root)
+    if not owner_path.exists():
+        return {}
+    try:
+        with open(owner_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+            if isinstance(data, dict):
+                return data
+    except (OSError, json.JSONDecodeError):
+        pass
+    return {}
+
+
+def _save_branch_owner(owner: Dict[str, Any], *, project_root: Optional[str] = None) -> str:
+    owner_path = _branch_owner_abspath(project_root=project_root)
+    owner_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(owner_path, "w", encoding="utf-8") as f:
+        json.dump(owner, f, ensure_ascii=False, indent=2)
+    return str(owner_path)
+
+
+def get_branch_machine_status(
+    username: Optional[str] = None,
+    *,
+    branch_name: Optional[str] = None,
+    project_root: Optional[str] = None,
+) -> Dict[str, Any]:
+    branch = _resolve_target_branch(username, branch_name)
+    local_device = get_machine_identity()
+    owner = _load_branch_owner(project_root=project_root)
+    if not owner:
+        return {
+            "ok": True,
+            "branch": branch,
+            "owner_exists": False,
+            "owner": {},
+            "local_device": local_device,
+            "message": "Nhánh chưa được khóa theo máy.",
+        }
+
+    owner_branch = str(owner.get("branch_name", "") or "").strip()
+    owner_machine = str(owner.get("machine_id", "") or "").strip()
+    if owner_branch and branch and owner_branch != branch:
+        return {
+            "ok": False,
+            "branch": branch,
+            "owner_exists": True,
+            "owner": owner,
+            "local_device": local_device,
+            "message": f"Metadata của nhánh hiện tại không khớp: file đang ghi cho {owner_branch}.",
+        }
+
+    if owner_machine and owner_machine != local_device["machine_id"]:
+        owner_host = str(owner.get("hostname", "") or "máy khác")
+        updated_at = str(owner.get("updated_at", "") or owner.get("claimed_at", "") or "").strip()
+        suffix = f" Lần cập nhật gần nhất: {updated_at}." if updated_at else ""
+        return {
+            "ok": False,
+            "branch": branch,
+            "owner_exists": True,
+            "owner": owner,
+            "local_device": local_device,
+            "message": f"Nhánh {branch} đang bị khóa bởi máy {owner_host}.{suffix}",
+        }
+
+    return {
+        "ok": True,
+        "branch": branch,
+        "owner_exists": True,
+        "owner": owner,
+        "local_device": local_device,
+        "message": f"Nhánh {branch} đang thuộc máy hiện tại.",
+    }
+
+
+def ensure_branch_machine_claim(
+    username: Optional[str] = None,
+    *,
+    branch_name: Optional[str] = None,
+    project_root: Optional[str] = None,
+) -> Dict[str, Any]:
+    branch = _resolve_target_branch(username, branch_name)
+    status = get_branch_machine_status(
+        username=username,
+        branch_name=branch_name,
+        project_root=project_root,
+    )
+    if not status.get("ok"):
+        return _result(False, status.get("message", "Nhánh đang bị dùng bởi máy khác."), status=PENDING_PUSH)
+
+    owner = status.get("owner", {}) if status.get("owner_exists") else {}
+    local_device = status["local_device"]
+    app_user = username
+    if not app_user:
+        try:
+            from modules import auth
+            app_user = auth.get_current_user()
+        except Exception:
+            app_user = ""
+
+    now = _now_iso()
+    if not owner:
+        owner = {
+            "branch_name": branch,
+            "machine_id": local_device["machine_id"],
+            "hostname": local_device["hostname"],
+            "os_user": local_device["os_user"],
+            "app_user": app_user or "",
+            "claimed_at": now,
+            "updated_at": now,
+        }
+    else:
+        owner.update(
+            {
+                "branch_name": branch,
+                "machine_id": local_device["machine_id"],
+                "hostname": local_device["hostname"],
+                "os_user": local_device["os_user"],
+                "app_user": app_user or str(owner.get("app_user", "") or ""),
+                "updated_at": now,
+            }
+        )
+        owner.setdefault("claimed_at", now)
+
+    owner_path = _save_branch_owner(owner, project_root=project_root)
+    return _result(
+        True,
+        f"Nhánh {branch} đã được gắn với máy hiện tại.",
+        stdout=owner_path,
+        status=PENDING_PUSH,
+    )
+
+
+def backup_database(*, project_root: Optional[str] = None) -> Dict[str, Any]:
+    root = _resolve_project_root(project_root)
+    try:
+        from modules import record_store
+
+        source = Path(record_store.get_storage_path()).resolve()
+    except Exception:
+        source = root / "data" / DEFAULT_RUNTIME_DB_NAME
+
+    if not source.exists():
+        return _result(True, "Không tìm thấy file DB để sao lưu.")
+
+    backup_dir = root / BACKUP_DIR
+    backup_dir.mkdir(parents=True, exist_ok=True)
+    timestamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+    target = backup_dir / f"{source.stem}-{timestamp}{source.suffix or '.db'}"
+    try:
+        shutil.copy2(source, target)
+    except OSError as exc:
+        return _result(
+            False,
+            f"Không thể sao lưu DB trước khi pull: {exc}",
+            stderr=str(exc),
+            status=PENDING_PUSH,
+        )
+
+    return _result(True, f"Đã sao lưu DB trước khi pull: {target}", stdout=str(target), status=SYNCED)
+
+
+def get_branch_divergence(
+    username: Optional[str] = None,
+    *,
+    branch_name: Optional[str] = None,
+    project_root: Optional[str] = None,
+) -> Dict[str, Any]:
+    branch = _resolve_target_branch(username, branch_name)
+    remote_ref = f"refs/remotes/origin/{branch}"
+    remote = _run_git_command(["rev-parse", remote_ref], project_root=project_root)
+    if not remote["ok"]:
+        return {"ok": False, "ahead": 0, "behind": 0}
+
+    counts = _run_git_command(
+        ["rev-list", "--left-right", "--count", f"HEAD...{remote_ref}"],
+        project_root=project_root,
+    )
+    if not counts["ok"]:
+        return {"ok": False, "ahead": 0, "behind": 0}
+
+    parts = (counts.get("stdout", "") or "").replace("\t", " ").split()
+    if len(parts) != 2:
+        return {"ok": False, "ahead": 0, "behind": 0}
+
+    try:
+        ahead = int(parts[0])
+        behind = int(parts[1])
+    except ValueError:
+        return {"ok": False, "ahead": 0, "behind": 0}
+
+    return {"ok": True, "ahead": ahead, "behind": behind}
+
+
+def get_sync_warnings(
+    username: Optional[str] = None,
+    *,
+    branch_name: Optional[str] = None,
+    project_root: Optional[str] = None,
+) -> List[Dict[str, Any]]:
+    branch = _resolve_target_branch(username, branch_name)
+    warnings: List[Dict[str, Any]] = []
+
+    branch_status = get_branch_machine_status(
+        username=username,
+        branch_name=branch_name,
+        project_root=project_root,
+    )
+    if not branch_status.get("ok"):
+        warnings.append(
+            {
+                "level": "danger",
+                "blocking": True,
+                "title": "Nhánh đang bị máy khác giữ",
+                "message": branch_status.get("message", "Nhánh này đang bị dùng ở máy khác."),
+            }
+        )
+    elif not branch_status.get("owner_exists"):
+        warnings.append(
+            {
+                "level": "warning",
+                "blocking": False,
+                "title": "Nhánh chưa khóa máy",
+                "message": f"Nhánh {branch} chưa gắn với máy nào. Lần lưu tiếp theo sẽ khóa nhánh này cho máy hiện tại.",
+            }
+        )
+
+    if has_uncommitted_changes(project_root=project_root):
+        warnings.append(
+            {
+                "level": "warning",
+                "blocking": True,
+                "title": "Có thay đổi local chưa commit",
+                "message": "Hãy lưu hoặc gửi xong thay đổi hiện tại trước khi đổi máy hoặc tiếp tục đồng bộ.",
+            }
+        )
+
+    divergence = get_branch_divergence(
+        username=username,
+        branch_name=branch_name,
+        project_root=project_root,
+    )
+    if divergence.get("ok"):
+        ahead = int(divergence.get("ahead", 0))
+        behind = int(divergence.get("behind", 0))
+        if ahead > 0 and behind > 0:
+            warnings.append(
+                {
+                    "level": "danger",
+                    "blocking": True,
+                    "title": "Nguy cơ conflict cao",
+                    "message": f"Nhánh local đang đi trước {ahead} commit và sau remote {behind} commit. Không nên tiếp tục cho tới khi xử lý đồng bộ thủ công.",
+                }
+            )
+        elif behind > 0:
+            warnings.append(
+                {
+                    "level": "warning",
+                    "blocking": False,
+                    "title": "Remote có dữ liệu mới",
+                    "message": f"Remote đang đi trước {behind} commit. App sẽ sao lưu DB trước khi pull.",
+                }
+            )
+        elif ahead > 0:
+            warnings.append(
+                {
+                    "level": "warning",
+                    "blocking": False,
+                    "title": "Có commit local chưa gửi",
+                    "message": f"Local đang đi trước {ahead} commit. Nên push sớm để tránh chồng dữ liệu.",
+                }
+            )
+
+    if branch_status.get("owner_exists"):
+        warnings.append(
+            {
+                "level": "warning",
+                "blocking": False,
+                "title": "SQLite là file nhị phân",
+                "message": "Mỗi branch trạm chỉ nên dùng trên một máy. Không copy DB sang máy khác rồi cùng làm song song.",
+            }
+        )
+
+    return warnings
+
+
 def clear_index_lock(project_root: Optional[str] = None) -> None:
     root = _resolve_project_root(project_root)
     lock_file = root / ".git" / "index.lock"
@@ -209,7 +554,21 @@ def git_add_commit(
             branch_result["status"] = OFFLINE
             return branch_result
 
-    add_result = _run_git_command(["add", filepath], project_root=project_root)
+        claim_result = ensure_branch_machine_claim(
+            username=username,
+            branch_name=branch_name,
+            project_root=project_root,
+        )
+        if not claim_result["ok"]:
+            return claim_result
+        owner_file = claim_result.get("stdout", "")
+    else:
+        owner_file = ""
+
+    add_args = ["add", filepath]
+    if owner_file:
+        add_args.append(owner_file)
+    add_result = _run_git_command(add_args, project_root=project_root)
     if not add_result["ok"]:
         add_result["message"] = "Không thể thêm tệp dữ liệu vào Git."
         return add_result
@@ -255,9 +614,17 @@ def git_push(
         branch_result["status"] = OFFLINE
         return branch_result
 
+    claim_result = ensure_branch_machine_claim(
+        username=username,
+        branch_name=branch_name,
+        project_root=project_root,
+    )
+    if not claim_result["ok"]:
+        return claim_result
+
     push_result = _run_git_command(["push", "-u", "origin", branch], project_root=project_root)
     if push_result["ok"]:
-        push_result["message"] = "Đã gửi dữ liệu về HQ."
+        push_result["message"] = "Đã gửi dữ liệu về Hub."
         push_result["status"] = SYNCED
         return push_result
 
@@ -281,6 +648,21 @@ def git_pull(
     branch = _resolve_target_branch(username, branch_name)
     if not branch:
         return _result(False, "Thiếu nhánh để pull.", status=OFFLINE)
+
+    branch_status = get_branch_machine_status(
+        username=username,
+        branch_name=branch_name,
+        project_root=project_root,
+    )
+    if not branch_status.get("ok"):
+        return _result(False, branch_status.get("message", "Nhánh đang bị máy khác giữ."), status=PENDING_PUSH)
+
+    if has_uncommitted_changes(project_root=project_root):
+        return _result(
+            False,
+            "Có thay đổi local chưa commit. Hãy push hoặc xử lý xong trước khi pull để tránh conflict.",
+            status=PENDING_PUSH,
+        )
 
     fetch_result = _run_git_command(["fetch", "origin", branch], project_root=project_root)
     if not fetch_result["ok"]:
@@ -316,10 +698,15 @@ def git_pull(
             checkout["status"] = PENDING_PUSH
             return checkout
 
+    backup_result = backup_database(project_root=project_root)
+    if not backup_result["ok"]:
+        return backup_result
+
     merge_result = _run_git_command(["merge", "--ff-only", "FETCH_HEAD"], project_root=project_root)
     if merge_result["ok"]:
-        merge_result["message"] = "Đã nhận dữ liệu mới từ HQ."
+        merge_result["message"] = "Đã nhận dữ liệu mới từ Hub."
         merge_result["status"] = SYNCED
+        merge_result["backup_path"] = backup_result.get("stdout", "")
         return merge_result
 
     stderr = (merge_result.get("stderr") or "").lower()
@@ -332,6 +719,7 @@ def git_pull(
     else:
         merge_result["message"] = f"Pull nhánh {branch} thất bại."
         merge_result["status"] = PENDING_PUSH
+    merge_result["backup_path"] = backup_result.get("stdout", "")
     return merge_result
 
 
@@ -344,6 +732,25 @@ def get_sync_status(
     branch = _resolve_target_branch(username, branch_name)
     if not branch:
         return _result(False, "Thiếu nhánh để kiểm tra trạng thái đồng bộ.", status=OFFLINE)
+
+    branch_status = get_branch_machine_status(
+        username=username,
+        branch_name=branch_name,
+        project_root=project_root,
+    )
+    if not branch_status.get("ok"):
+        return _result(
+            False,
+            branch_status.get("message", "Nhánh đang bị máy khác giữ."),
+            status=PENDING_PUSH,
+        )
+
+    if has_uncommitted_changes(project_root=project_root):
+        return _result(
+            True,
+            "Có thay đổi cục bộ chưa commit hoặc chưa được gửi lên.",
+            status=PENDING_PUSH,
+        )
 
     head = _run_git_command(["rev-parse", "HEAD"], project_root=project_root)
     if not head["ok"]:
@@ -535,7 +942,7 @@ def get_station_title(branch_name: Optional[str] = None, *, project_root: Option
     Backward-compatible wrapper around get_station_info().
     
     Examples:
-    - "main" → "CareVL - HQ"
+    - "main" → "CareVL - Hub"
     - "user/TRAM-Y-TE-P-CAI-VON" → "Trạm Y Tế Phường Cái Vồn"
     - "unknown" → "CareVL"
     

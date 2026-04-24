@@ -51,7 +51,7 @@ Admin có thể dùng ngay bộ tool trong repo này:
 - File cấu hình app đọc: `config/stations.json`
 - File cấu hình admin app: `config/app_config.json`
 - File kiểm tra danh sách trạm: `admin-check-stations.bat`
-- File kiểm tra branch nào đã có SQLite phase 2: `admin-check-phase2.bat`
+- File kiểm tra branch nào đã có runtime DB: `admin-check-runtime-db.bat`
 - File sinh `stations.json`: `admin-build-stations.bat`
 - File xuất checklist onboard: `admin-export-onboarding.bat`
 - File gom snapshot SQLite toàn hệ thống: `admin-aggregate-data.bat`
@@ -61,7 +61,7 @@ Quy trình sử dụng đề xuất:
 
 1. Sửa `config/stations.csv`
 2. Chạy `admin-check-stations.bat`
-3. Chạy `admin-check-phase2.bat` để xem branch nào chưa có `carevl_phase2.db`
+3. Chạy `admin-check-runtime-db.bat` để xem branch nào chưa có `carevl.db`
 4. Nếu hợp lệ, chạy `admin-build-stations.bat`
 5. Nếu cần bàn giao hoặc theo dõi onboarding, chạy `admin-export-onboarding.bat`
 6. Nếu cần gom snapshot dữ liệu toàn hệ thống theo ngày, chạy `admin-aggregate-data.bat`
@@ -71,7 +71,7 @@ Kết quả checklist sẽ được xuất ra:
 
 - `reports/onboarding_checklist.csv`
 - `reports/onboarding_checklist.md`
-- `reports/hub/phase2_branch_status.json`
+- `reports/hub/runtime_branch_status.json`
 - `reports/aggregate/YYYY-MM-DD/`
 - `reports/hub/carevl_hub.duckdb`
 
@@ -155,7 +155,7 @@ Admin bàn giao:
 
 - Tài khoản GitHub của trạm
 - Cách đăng nhập lần đầu
-- Cách tạo hồ sơ
+- Cách thêm lượt khám mới
 - Cách gửi dữ liệu về Hub
 - Cách báo lỗi khi gặp sự cố
 
@@ -165,12 +165,12 @@ Sau khi trạm đăng nhập lần đầu, admin cần kiểm tra:
 
 - Trạm đăng nhập bằng đúng tài khoản trạm
 - App hiện đúng tên trạm
-- Hồ sơ tạo mới gắn đúng station_id
+- Lượt khám tạo mới gắn đúng station_id
 - Dữ liệu push lên đúng branch của trạm
 
 Checklist nghiệm thu:
 
-- Tạo 1 hồ sơ thử
+- Tạo 1 lượt khám thử
 - Kiểm tra commit đã sinh ra
 - Kiểm tra push lên branch thành công
 - Xác nhận Hub nhìn thấy branch và thay đổi mới
@@ -364,7 +364,7 @@ Nếu trạm đổi máy:
 - Đã thêm metadata trạm
 - Đã chuẩn bị máy và app
 - Đã test đăng nhập
-- Đã test tạo 1 hồ sơ mẫu
+- Đã test tạo 1 lượt khám mẫu
 - Đã test push
 
 ### Khi nhận dữ liệu hàng ngày

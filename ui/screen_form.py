@@ -5,12 +5,14 @@ from typing import Any, Callable, Dict, Optional
 import customtkinter as ctk
 
 from modules import config_loader
-from modules import crud
+from modules import record_store as crud
 from modules import form_engine
 from modules import validator
 from ui.design_tokens import (
     BG_APP,
     BORDER,
+    DANGER_BG,
+    DANGER_TEXT,
     INPUT_BG_DISABLED,
     SURFACE,
     TEXT_PRIMARY,
@@ -19,6 +21,7 @@ from ui.design_tokens import (
     primary_button_style,
     secondary_button_style,
 )
+from ui.terms import HUB_LABEL
 from ui.ui_components import TextPromptDialog, add_modal_actions, add_modal_header, create_modal, status_badge
 
 
@@ -34,6 +37,7 @@ class ScreenForm(ctk.CTkFrame):
         branch_locked: bool,
         on_back: Callable[[], None],
         on_saved: Callable[[], None],
+        embedded_shell: bool = False,
         **kwargs
     ):
         super().__init__(master, **kwargs)
@@ -47,6 +51,7 @@ class ScreenForm(ctk.CTkFrame):
         self.branch_locked = branch_locked
         self.on_back = on_back
         self.on_saved = on_saved
+        self.embedded_shell = embedded_shell
         
         self.is_dirty = False
         self.form_engine: Optional[form_engine.FormEngine] = None
@@ -72,25 +77,27 @@ class ScreenForm(ctk.CTkFrame):
             self.package_id = packages[0].get("id", "nct")
 
     def _setup_ui(self):
-        self.grid_rowconfigure(1, weight=1)
+        self.grid_rowconfigure(2, weight=1)
         self.grid_columnconfigure(0, weight=1)
         
         header_frame = ctk.CTkFrame(self, fg_color="transparent")
         header_frame.grid(row=0, column=0, sticky="ew", padx=16, pady=(14, 10))
         header_frame.grid_columnconfigure(1, weight=1)
-        
-        back_btn = ctk.CTkButton(
-            header_frame,
-            text="← Quay lại",
-            command=self._on_back_click,
-            **secondary_button_style(width=110, height=38),
-        )
-        back_btn.grid(row=0, column=0, padx=5)
+        header_frame.grid_columnconfigure(2, weight=0)
+
+        if not self.embedded_shell:
+            back_btn = ctk.CTkButton(
+                header_frame,
+                text="← Quay lại",
+                command=self._on_back_click,
+                **secondary_button_style(width=110, height=38),
+            )
+            back_btn.grid(row=0, column=0, padx=5)
 
         title_block = ctk.CTkFrame(header_frame, fg_color="transparent")
-        title_block.grid(row=0, column=1, sticky="ew", padx=(12, 8))
+        title_block.grid(row=0, column=1, sticky="ew", padx=(0 if self.embedded_shell else 12, 8))
 
-        headline = "Chỉnh sửa hồ sơ" if self.record_id else "Tạo hồ sơ mới"
+        headline = "Cập nhật lượt khám" if self.record_id else "Thêm lượt khám mới"
         ctk.CTkLabel(
             title_block,
             text=headline,
@@ -101,17 +108,35 @@ class ScreenForm(ctk.CTkFrame):
 
         ctk.CTkLabel(
             title_block,
-            text=f"Ngày làm việc: {self.date_str} | Nhánh: {self.branch_name}",
+            text=f"Ngày ghi nhận: {self.date_str}",
             font=font(13),
             text_color=TEXT_SECONDARY,
             anchor="w",
         ).pack(anchor="w", pady=(4, 0))
 
+        header_actions = ctk.CTkFrame(header_frame, fg_color="transparent")
+        header_actions.grid(row=0, column=2, sticky="e", padx=(8, 0))
+
+        ctk.CTkButton(
+            header_actions,
+            text="Hủy",
+            command=self._on_back_click,
+            **secondary_button_style(width=90, height=38),
+        ).pack(side="left", padx=(0, 8))
+
+        self.save_btn = ctk.CTkButton(
+            header_actions,
+            text="Lưu lượt khám",
+            command=self._on_save,
+            **primary_button_style(width=120, height=38),
+        )
+        self.save_btn.pack(side="left")
+
         meta_frame = ctk.CTkFrame(self, fg_color=SURFACE, corner_radius=18, border_width=1, border_color=BORDER)
         meta_frame.grid(row=1, column=0, sticky="ew", padx=16, pady=(0, 10))
         meta_frame.grid_columnconfigure(1, weight=1)
 
-        ctk.CTkLabel(meta_frame, text="Gói khám", font=font(13, "semibold"), text_color=TEXT_SECONDARY).grid(
+        ctk.CTkLabel(meta_frame, text="Biểu mẫu khám", font=font(13, "semibold"), text_color=TEXT_SECONDARY).grid(
             row=0, column=0, sticky="w", padx=(16, 12), pady=14
         )
 
@@ -155,21 +180,64 @@ class ScreenForm(ctk.CTkFrame):
 
         status_host = ctk.CTkFrame(meta_frame, fg_color="transparent")
         status_host.grid(row=0, column=2, sticky="e", padx=(12, 16), pady=12)
-        status_text = "Đang chỉnh sửa" if self.record_id else "Hồ sơ mới"
+        status_text = "Lượt khám đang sửa" if self.record_id else "Lượt khám mới"
         status_tone = "warning" if self.record_id else "info"
         status_badge(status_host, status_text, status_tone).pack(anchor="e")
-        
-        form_frame = ctk.CTkScrollableFrame(
-            self,
-            orientation="vertical",
+
+        ctk.CTkLabel(
+            meta_frame,
+            text="Thông tin bệnh nhân, lượt khám và biểu mẫu đang được ghi nhận.",
+            font=font(12),
+            text_color=TEXT_SECONDARY,
+            justify="left",
+            anchor="w",
+        ).grid(row=1, column=0, columnspan=3, sticky="ew", padx=16, pady=(0, 12))
+
+        content_frame = ctk.CTkFrame(self, fg_color="transparent")
+        content_frame.grid(row=2, column=0, sticky="nsew", padx=16, pady=(0, 10))
+        content_frame.grid_rowconfigure(0, weight=1)
+        content_frame.grid_columnconfigure(0, weight=1)
+
+        form_shell = ctk.CTkFrame(
+            content_frame,
             fg_color=SURFACE,
-            corner_radius=18,
+            corner_radius=12,
             border_width=1,
             border_color=BORDER,
         )
-        form_frame.grid(row=2, column=0, sticky="nsew", padx=16, pady=(0, 10))
+        form_shell.grid(row=0, column=0, sticky="nsew")
+        form_shell.grid_rowconfigure(1, weight=1)
+        form_shell.grid_columnconfigure(0, weight=1)
+
+        form_header = ctk.CTkFrame(form_shell, fg_color="transparent")
+        form_header.grid(row=0, column=0, sticky="ew", padx=16, pady=(16, 0))
+        form_header.grid_columnconfigure(0, weight=1)
+
+        ctk.CTkLabel(
+            form_header,
+            text="Biểu mẫu nhập liệu",
+            font=font(18, "bold"),
+            text_color=TEXT_PRIMARY,
+            anchor="w",
+        ).grid(row=0, column=0, sticky="w")
+        ctk.CTkLabel(
+            form_header,
+            text="Nhập trước các trường cần thiết, bổ sung sau nếu cần.",
+            font=font(12),
+            text_color=TEXT_SECONDARY,
+            anchor="w",
+        ).grid(row=1, column=0, sticky="w", pady=(2, 0))
+
+        form_frame = ctk.CTkScrollableFrame(
+            form_shell,
+            orientation="vertical",
+            fg_color=SURFACE,
+            corner_radius=18,
+            border_width=0,
+        )
+        form_frame.grid(row=1, column=0, sticky="nsew", padx=0, pady=(8, 0))
         form_frame.grid_columnconfigure(0, weight=1)
-        
+
         self.form_engine = form_engine.render_form(self.current_package, form_frame)
         
         footer_frame = ctk.CTkFrame(self, fg_color="transparent")
@@ -178,59 +246,24 @@ class ScreenForm(ctk.CTkFrame):
         
         self.delete_btn = ctk.CTkButton(
             footer_frame,
-            text="Xóa hồ sơ",
+            text="Xóa lượt khám",
             command=self._on_delete,
             state="disabled" if not self.record_id else "normal",
-            **secondary_button_style(height=40),
-            fg_color="#FCE8E8",
-            hover_color="#F8DADA",
-            text_color="#8C2323",
+            fg_color=DANGER_BG,
+            hover_color="#F2CACA",
+            text_color=DANGER_TEXT,
+            border_width=1,
             border_color="#E9B8B8",
+            corner_radius=10,
+            height=40,
+            font=font(14, "semibold"),
         )
         self.delete_btn.grid(row=0, column=0, sticky="w", padx=5)
-        
-        self.save_btn = ctk.CTkButton(
-            footer_frame,
-            text="Lưu hồ sơ",
-            command=self._on_save,
-            **primary_button_style(height=40),
-        )
-        self.save_btn.grid(row=0, column=1, sticky="e", padx=5)
         
         self.bind("<Control-s>", lambda e: self._on_save())
         self.bind("<Return>", lambda e: self._on_save())
         self.bind("<Escape>", lambda e: self._on_back_click())
-        
-        self._track_changes()
 
-    def _track_changes(self):
-        for field_id, widgets in self.form_engine.field_widgets.items():
-            if widgets.get("is_label_only"):
-                continue
-            widget = widgets.get("widget")
-            if widget:
-                try:
-                    widget.bind("<KeyRelease>", self._mark_dirty)
-                    widget.bind("<FocusOut>", self._mark_dirty)
-                    
-                    # Also trigger computed field updates
-                    widget.bind("<KeyRelease>", lambda e: self._update_computed_fields(), add="+")
-                    widget.bind("<FocusOut>", lambda e: self._update_computed_fields(), add="+")
-                except Exception:
-                    pass
-    
-    def _update_computed_fields(self):
-        """Update computed fields in real-time (e.g., BMI)."""
-        try:
-            values = self.form_engine.get_values()
-            # Form engine will compute and update display
-        except Exception:
-            pass
-
-    def _mark_dirty(self, event=None):
-        if not self.is_dirty:
-            self.is_dirty = True
-    
     def _on_package_change(self, selected_option: str):
         """Handle package selection change (only for new records)."""
         if self.record_id:
@@ -261,14 +294,15 @@ class ScreenForm(ctk.CTkFrame):
             self.on_back()
 
     def _load_record(self):
-        records = crud.read_day(self.date_str)
-        
-        for record in records:
-            if record.get("id") == self.record_id:
-                data = record.get("data", {})
-                self.form_engine.set_values(data)
-                self.package_id = record.get("package_id", self.package_id)
-                break
+        record = crud.load_encounter(self.record_id) if self.record_id else None
+        if record is None:
+            records = crud.read_day(self.date_str)
+            record = next((item for item in records if item.get("id") == self.record_id), None)
+
+        if record:
+            data = record.get("data", {})
+            self.form_engine.set_values(data)
+            self.package_id = record.get("package_id", self.package_id)
 
     def _on_save(self):
         raw_values = self.form_engine.get_values()
@@ -297,18 +331,18 @@ class ScreenForm(ctk.CTkFrame):
             record = next((r for r in crud.read_day(self.date_str) if r.get("id") == self.record_id), None)
             if record:
                 ho_ten = self._get_field_value(data, "demographics", "ho_ten") or "unknown"
-                message = f"feat: cập nhật hồ sơ {ho_ten} [{timestamp}] by {self.username}"
-                sync.git_add_commit(crud._get_path(self.date_str), message, **sync_kwargs)
+                message = f"feat: cập nhật lượt khám {ho_ten} [{timestamp}] by {self.username}"
+                sync.git_add_commit(crud.get_storage_path(), message, **sync_kwargs)
         else:
             new_record = crud.create(data, self.package_id, self.username, self.date_str)
             self.record_id = new_record.get("id")
             
             ho_ten = self._get_field_value(data, "demographics", "ho_ten") or "unknown"
-            message = f"feat: lưu hồ sơ {ho_ten} [{timestamp}] by {self.username}"
-            sync.git_add_commit(crud._get_path(self.date_str), message, **sync_kwargs)
+            message = f"feat: tạo lượt khám {ho_ten} [{timestamp}] by {self.username}"
+            sync.git_add_commit(crud.get_storage_path(), message, **sync_kwargs)
         
         self.is_dirty = False
-        self._show_success("Đã lưu ✓ | Chưa gửi về HQ")
+        self._show_success(f"Đã lưu lượt khám ✓ | Chưa gửi về {HUB_LABEL}")
         
         if self.on_saved:
             self.on_saved()
@@ -322,7 +356,7 @@ class ScreenForm(ctk.CTkFrame):
         dialog = TextPromptDialog(
             self,
             title="Xác nhận xóa",
-            body="Thao tác này sẽ xóa hồ sơ khỏi dữ liệu ngày hiện tại và tạo commit Git tương ứng.",
+            body="Thao tác này sẽ xóa lượt khám khỏi dữ liệu hiện tại và tạo commit Git tương ứng.",
             prompt="Gõ 'xoa' để xác nhận",
             confirm_text="Xóa",
             danger=True,
@@ -331,16 +365,16 @@ class ScreenForm(ctk.CTkFrame):
         
         if confirm and confirm.strip().lower() == "xoa":
             crud.delete(self.record_id, self.date_str)
-            message = f"feat: xóa hồ sơ [{datetime.datetime.now().strftime('%H:%M:%S %d-%m-%Y')}] by {self.username}"
+            message = f"feat: xóa lượt khám [{datetime.datetime.now().strftime('%H:%M:%S %d-%m-%Y')}] by {self.username}"
             sync_kwargs = {"branch_name": self.branch_name} if self.branch_locked else {"username": self.username}
-            sync.git_add_commit(crud._get_path(self.date_str), message, **sync_kwargs)
+            sync.git_add_commit(crud.get_storage_path(), message, **sync_kwargs)
             
             if self.on_back:
                 self.on_back()
 
     def _show_error(self, message: str):
         dialog = create_modal(self, "Lỗi", "420x220")
-        add_modal_header(dialog, "Không thể lưu hồ sơ", message)
+        add_modal_header(dialog, "Không thể lưu lượt khám", message)
         add_modal_actions(dialog, "Đóng", dialog.destroy)
 
     def _show_success(self, message: str):
@@ -399,7 +433,8 @@ def render_form_screen(
     branch_name: str,
     branch_locked: bool,
     on_back: Callable[[], None],
-    on_saved: Callable[[], None]
+    on_saved: Callable[[], None],
+    embedded_shell: bool = False,
 ) -> ScreenForm:
     return ScreenForm(
         master,
@@ -410,5 +445,6 @@ def render_form_screen(
         branch_name=branch_name,
         branch_locked=branch_locked,
         on_back=on_back,
-        on_saved=on_saved
+        on_saved=on_saved,
+        embedded_shell=embedded_shell,
     )

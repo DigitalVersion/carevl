@@ -1,334 +1,323 @@
-# Quy Che Van Hanh He Thong CareVL
+# Quy Chế Vận Hành Hệ Thống CareVL
 
-Tai lieu nay danh cho nguoi van hanh thuc te tai tram y te va bo phan quan tri HQ.
+Tài liệu này dành cho người vận hành tại trạm và bộ phận quản trị Hub.
 
-README.md dung de gioi thieu tong quan du an.  
-SPECS.md dung cho dev va ky thuat.  
-Tai lieu nay dung de van hanh he thong hang ngay.
+`README.md` dùng để giới thiệu tổng quan dự án.  
+`AGENTS.md` và `PHASE2_SCHEMA_SPEC.md` dùng cho dev và kỹ thuật.  
+Tài liệu này dùng để thống nhất cách vận hành hằng ngày.
 
-## 1. Muc dich
+---
 
-Quy che nay quy dinh cach to chuc, cap quyen, van hanh va dong bo du lieu trong he thong CareVL de toan bo du lieu duoc quan ly thong nhat theo `tram y te`, tranh nham lan giua ca nhan su dung may va don vi chiu trach nhiem du lieu.
+## 1. Mục đích
 
-## 2. Nguyen tac quan ly
+Quy chế này quy định cách tổ chức, cấp quyền, nhập liệu, đồng bộ và tiếp nhận dữ liệu trong CareVL để:
 
-Trong CareVL, `tram y te` la don vi van hanh co ban cua he thong.
+- quản lý theo **trạm y tế**
+- tránh nhầm giữa **người thao tác** và **đơn vị chịu trách nhiệm dữ liệu**
+- giữ cho dữ liệu đi đúng luồng **Edge → Hub**
 
-Moi du lieu phat sinh tren he thong duoc hieu la du lieu cua tram, khong phai du lieu so huu rieng cua ca nhan nhap lieu.
+---
 
-Nguoi truc tiep su dung may chi la nguoi thao tac thay mat tram. Vi vay:
+## 2. Nguyên tắc chung
 
-- Khong to chuc he thong theo tung bac si hay tung nhan vien rieng le
-- Khong coi tai khoan ca nhan la don vi quan ly chinh
-- Moi tram su dung mot danh tinh thong nhat de lam viec tren he thong
+- Mỗi trạm là một đơn vị vận hành độc lập.
+- Dữ liệu được quản lý theo **trạm**, không theo cá nhân.
+- Người dùng trực tiếp chỉ là người thao tác thay mặt cho trạm.
+- Mỗi trạm phải có một danh tính vận hành thống nhất:
+  - tài khoản GitHub của trạm
+  - branch Git của trạm
+  - metadata trạm trong cấu hình
+- GitHub là lớp hỗ trợ truy vết và phục hồi, không phải cơ chế bảo đảm tuyệt đối chống sai dữ liệu.
+- An toàn vận hành phải dựa trên quy trình đúng, không dựa vào giả định rằng GitHub sẽ tự xử lý mọi sai sót.
 
-## 3. Pham vi ap dung
+---
 
-Quy che nay ap dung cho:
+## 3. Phạm vi áp dụng
 
-- Ban quan tri he thong cap tinh hoac HQ
-- Cac tram y te tham gia nhap lieu
-- May tinh, tai khoan GitHub, branch Git va du lieu thuoc he thong CareVL
+Áp dụng cho:
 
-## 4. Mo hinh quan ly thong nhat
+- bộ phận quản trị Hub
+- các trạm y tế và đoàn khám
+- máy tính, tài khoản GitHub, branch Git và dữ liệu thuộc hệ thống CareVL
 
-Moi tram tham gia he thong phai co mot bo nhan dien van hanh thong nhat gom:
+---
 
-- `1 tai khoan GitHub dai dien cho tram`
-- `1 branch Git dai dien cho tram`
-- `1 cau hinh metadata cua tram` trong danh sach quan ly tram
+## 4. Mô hình quản lý
 
-Ba thanh phan nay phai dong nhat voi nhau.
+Mỗi trạm phải có:
 
-Vi du:
+- `1` tài khoản GitHub đại diện cho trạm
+- `1` branch Git riêng
+- `1` cấu hình metadata trạm
 
-- Tai khoan GitHub: `TRAM-Y-TE-P-CAI-VON`
+Ví dụ:
+
+- Tài khoản GitHub: `TRAM-Y-TE-P-CAI-VON`
 - Branch: `user/TRAM-Y-TE-P-CAI-VON`
-- Metadata:
-  - `title`: `Tram Y Te Phuong Cai Von`
-  - `station_id`: `TYT-VL-001`
-  - `commune_code`: `86839`
+- `station_id`: `TYT-VL-001`
+- `commune_code`: `86839`
 
-## 5. Dinh nghia
+Ba thành phần này phải khớp với nhau.
 
-- `Tram`: don vi chiu trach nhiem nhap lieu va quan ly du lieu tai dia ban duoc giao
-- `Tai khoan tram`: tai khoan GitHub dung chung cho mot tram
-- `Branch tram`: nhanh Git chua du lieu lam viec cua tram
-- `HQ/Admin`: bo phan quan tri, tiep nhan va hop nhat du lieu tu cac tram
-- `Du lieu local`: du lieu dang luu tren may tram, chua chac da gui ve HQ
-- `Da sync`: du lieu da duoc push tu may tram len branch cua tram
-- `Cho sync`: du lieu da luu va commit tren may nhung chua gui ve HQ
+---
 
-## 6. Quy uoc bat buoc
+## 5. Thuật ngữ
 
-### 6.1. Quy uoc don vi quan ly
+- `Hub`
+  - nơi tiếp nhận, hợp nhất, tổng hợp và đối soát dữ liệu
+- `Edge`
+  - điểm nhập liệu thực tế tại trạm hoặc đoàn khám
+- `Dữ liệu local`
+  - dữ liệu đang lưu trên máy Edge
+- `Đã sync`
+  - dữ liệu đã được push lên branch của trạm
+- `Chờ sync`
+  - dữ liệu đã lưu local nhưng chưa gửi lên branch
 
-Don vi quan ly du lieu la `tram`, khong phai `ca nhan`.
+---
 
-Moi thao tac nhap, sua, xoa, dong bo deu duoc hieu la thao tac cua tram.
+## 6. Quy ước bắt buộc
 
-### 6.2. Quy uoc tai khoan
+### 6.1. Quy ước tài khoản
 
-Moi tram dung mot tai khoan GitHub thong nhat.
+- Mỗi trạm dùng một tài khoản GitHub thống nhất.
+- Không dùng tài khoản cá nhân để vận hành chính thức, trừ khi có chỉ định đặc biệt.
 
-Khong dung tai khoan ca nhan de van hanh chinh thuc he thong, tru khi admin co quy dinh dac biet bang van ban.
+### 6.2. Quy ước branch
 
-### 6.3. Quy uoc branch
-
-Moi tram co mot branch rieng theo mau:
+Branch của trạm phải theo mẫu:
 
 ```text
 user/<ten_tai_khoan_tram>
 ```
 
-Vi du:
+Ví dụ:
 
 ```text
 user/TRAM-Y-TE-P-CAI-VON
 user/TRAM-Y-TE-X-BINH-MINH
 ```
 
-Khong dung branch ca nhan roi rac nhu:
+### 6.3. Quy ước metadata
 
-```text
-user/minhphat1
-user/bacsiA
-user/nguyenvana
-```
+Mỗi branch trạm phải có metadata tối thiểu:
 
-trong van hanh chinh thuc.
+- tên hiển thị trạm
+- mã trạm
+- mã địa bàn nếu có
 
-### 6.4. Quy uoc metadata
+### 6.4. Quy ước trách nhiệm dữ liệu
 
-Moi branch tram phai co ban ghi tuong ung trong file quan ly tram, bao gom toi thieu:
+- Dữ liệu sinh ra trên branch nào thì thuộc trách nhiệm của trạm đó.
+- Hub chỉ tiếp nhận, hợp nhất và tổng hợp; Hub không thay thế trách nhiệm kiểm tra đầu vào của trạm.
 
-- Ten hien thi tram
-- Ma tram
-- Ma dia ban xa/phuong neu co
+### 6.5. Quy ước an toàn với file SQLite runtime
 
-Neu thieu metadata, du lieu co the van duoc nhap nhung se khong bao dam gan dung dinh danh tram.
+- File runtime chính của ứng dụng là `carevl.db`.
+- `carevl.db` là file nhị phân SQLite; Git chỉ biết file có thay đổi hay không, không hiểu chi tiết từng hồ sơ bên trong để tự hợp nhất an toàn.
+- Không dùng nhiều máy cùng thao tác trên cùng một workspace trạm nếu chưa có quy trình quản trị riêng.
+- Không chép đè `carevl.db` bằng file khác khi chưa được Hub/Admin hướng dẫn.
+- Nếu cần gửi dự phòng hoặc bàn giao kỹ thuật, phải dùng chức năng `Xuất dữ liệu` để tạo `DB snapshot`.
 
-### 6.5. Quy uoc trach nhiem du lieu
+---
 
-Du lieu nao duoc tao tren branch cua tram thi thuoc trach nhiem cua tram do.
+## 7. Vai trò và trách nhiệm
 
-HQ chi tiep nhan, hop nhat va tong hop. HQ khong thay the trach nhiem kiem tra dau vao cua tram.
+### 7.1. Hub/Admin
 
-## 7. Vai tro va trach nhiem
+Hub/Admin chịu trách nhiệm:
 
-### 7.1. Trach nhiem cua HQ/Admin
+- cấp hoặc chuẩn hóa tài khoản GitHub cho từng trạm
+- cấp quyền repo dữ liệu
+- tạo hoặc chuẩn hóa branch trạm
+- khai báo metadata trạm
+- hướng dẫn cài đặt và đăng nhập lần đầu
+- theo dõi tình trạng sync
+- merge dữ liệu từ các branch trạm
+- xử lý conflict và sự cố quản trị
 
-HQ/Admin co trach nhiem:
+### 7.2. Trạm
 
-- Tao hoac cap tai khoan GitHub cho tung tram
-- Cap quyen truy cap repo du lieu cho tai khoan tram
-- Khoi tao hoac chuan hoa branch cua tram
-- Khai bao metadata tram vao cau hinh he thong
-- Huong dan tram cai dat va dang nhap lan dau
-- Theo doi tinh trang nhan du lieu tu cac tram
-- Merge du lieu tu cac branch tram ve nhanh tong hop
-- Xu ly conflict hoac su co quan tri o cap he thong
+Trạm chịu trách nhiệm:
 
-### 7.2. Trach nhiem cua tram
+- bảo quản tài khoản GitHub của trạm
+- nhập dữ liệu đúng và kịp thời
+- kiểm tra dữ liệu trước khi lưu
+- push dữ liệu khi có mạng
+- phối hợp với Hub khi có lỗi sync hoặc dữ liệu bất thường
 
-Tram co trach nhiem:
+### 7.3. Người thao tác tại trạm
 
-- Quan ly va bao mat tai khoan GitHub cua tram
-- Chi su dung tai khoan tram de van hanh chinh thuc
-- Nhap lieu dung, du, kip thoi
-- Kiem tra du lieu truoc khi luu
-- Thuc hien dong bo du lieu khi co mang
-- Phoi hop voi HQ khi co loi sync, conflict hoac sai du lieu
-- Khong tu y doi tai khoan, doi branch hoac sua cau hinh he thong neu chua duoc HQ chap thuan
+Người thao tác phải:
 
-### 7.3. Trach nhiem cua nguoi thao tac tai tram
+- dùng đúng tài khoản của trạm
+- không dùng tài khoản cá nhân để vận hành chính thức
+- không chia sẻ token hoặc mật khẩu ra ngoài phạm vi được phép
+- báo ngay khi phát hiện lỗi đồng bộ hoặc sai dữ liệu
 
-Nguoi thao tac tren may co trach nhiem:
+---
 
-- Su dung dung tai khoan tram
-- Khong dang nhap tai khoan ca nhan vao he thong van hanh chinh thuc
-- Khong chia se token hay mat khau ra ngoai pham vi tram
-- Bao ngay cho nguoi phu trach khi phat hien loi dong bo hoac du lieu bat thuong
+## 8. Quy trình trạm mới tham gia
 
-## 8. Quy trinh tram moi tham gia he thong
+### Bước 1. Hub chuẩn bị danh tính trạm
 
-### Buoc 1. HQ tao danh tinh cho tram
+- cấp tài khoản GitHub
+- mời vào repo dữ liệu
+- tạo branch đúng quy ước
+- khai báo metadata
 
-HQ thuc hien:
+### Bước 2. Hub bàn giao cho trạm
 
-- Cap mot tai khoan GitHub dai dien cho tram
-- Moi tai khoan do vao repo du lieu private
-- Tao hoac chuan hoa branch theo ten tai khoan tram
-- Khai bao metadata cua tram vao cau hinh quan ly tram
+- tài khoản GitHub
+- repo dữ liệu
+- `carevl.exe` hoặc bộ cài tương ứng
+- hướng dẫn đăng nhập và nhập liệu
 
-### Buoc 2. HQ ban giao cho tram
+### Bước 3. Trạm đăng nhập lần đầu
 
-HQ ban giao:
+- mở ứng dụng
+- đăng nhập GitHub
+- xác nhận mã thiết bị
+- hoàn tất xác thực
 
-- Tai khoan GitHub cua tram
-- Huong dan dang nhap
-- Repo du lieu da clone san hoac huong dan clone
-- File ung dung `carevl.exe` hoac bo cai tuong ung
+### Bước 4. Kiểm tra nhận diện trạm
 
-### Buoc 3. Tram dang nhap lan dau
+Sau đăng nhập, phải kiểm tra:
 
-Tram thuc hien:
+- tên trạm hiển thị đúng
+- dữ liệu mới gắn đúng `station_id`
+- sync hoạt động bình thường
 
-- Mo ung dung
-- Chon dang nhap GitHub
-- Nhap ma xac thuc theo huong dan tren GitHub
-- Hoan tat xac thuc de ung dung luu token local
+Nếu sai nhận diện trạm, phải dừng vận hành và báo Hub.
 
-### Buoc 4. Kiem tra nhan dien tram
+---
 
-Sau dang nhap, tram can kiem tra:
+## 9. Quy trình vận hành hằng ngày tại trạm
 
-- Ten tram hien thi dung
-- Du lieu moi nhap gan dung ma tram
-- Trang thai dong bo hoat dong binh thuong
+### Bước 1. Mở ứng dụng
 
-Neu ten tram hoac nhan dien tram sai, tram phai dung van hanh va bao HQ xu ly truoc khi nhap lieu that.
+- nếu token còn hiệu lực thì vào thẳng app
+- nếu token hết hạn thì đăng nhập lại
 
-## 9. Quy trinh van hanh hang ngay tai tram
+### Bước 2. Nhập và lưu dữ liệu
 
-### Buoc 1. Mo ung dung
+- tạo hồ sơ
+- sửa hồ sơ nếu cần
+- xóa hồ sơ sai sau khi xác nhận
 
-Nguoi dung tai tram mo ung dung tren may lam viec.
+Khi lưu:
 
-Neu token con hieu luc, he thong vao thang man hinh lam viec. Neu token het han, he thong yeu cau dang nhap lai bang tai khoan tram.
+- dữ liệu được ghi vào SQLite local
+- hệ thống tự commit thay đổi vào Git
+- hồ sơ ở trạng thái `chờ sync` cho đến khi được push
 
-### Buoc 2. Nhap ho so
+### Bước 3. Làm việc offline
 
-Tram thuc hien:
+Trạm được phép làm việc hoàn toàn offline. Mất mạng không được làm gián đoạn thao tác nhập liệu.
 
-- Tao ho so moi
-- Dien thong tin kham
-- Sua ho so neu can
-- Xoa ho so neu nhap sai va can huy
+### Bước 4. Đồng bộ khi có mạng
 
-Khi luu:
+Khi có mạng, trạm bấm `Gửi về Hub`.
 
-- Du lieu duoc ghi xuong may local
-- He thong tu commit thay doi vao Git
-- Ho so o trang thai `cho sync` cho den khi duoc gui len HQ
+Nếu push thành công:
 
-### Buoc 3. Lam viec offline
+- dữ liệu được gửi lên branch của trạm
+- hồ sơ chuyển sang trạng thái `đã sync`
 
-Tram duoc phep lam viec hoan toan offline.
+Nếu push thất bại:
 
-Mat mang khong lam mat kha nang nhap, sua, luu ho so tren may.
+- dữ liệu vẫn còn trên máy
+- tiếp tục làm việc bình thường
+- push lại khi mạng ổn hoặc sau khi xử lý xong lỗi
 
-### Buoc 4. Dong bo khi co mang
+Lưu ý an toàn:
 
-Khi co ket noi mang, tram bam `Gui ve HQ`.
+- `Gửi về Hub` giúp đưa dữ liệu lên branch của trạm và giữ lịch sử commit để truy vết.
+- `Gửi về Hub` không có nghĩa là hệ thống tự động sửa mọi sai sót dữ liệu.
+- Nếu người dùng đã nhập sai rồi lưu sai, GitHub vẫn có thể lưu lại bản sai đó nếu người dùng tiếp tục gửi.
+- Vì vậy, trạm vẫn phải kiểm tra dữ liệu trước khi lưu và dùng `DB snapshot` khi cần lưu dự phòng.
 
-Khi push thanh cong:
+---
 
-- Du lieu duoc gui len branch cua tram
-- Trang thai ho so chuyen sang `da sync`
+## 10. Quy trình Hub tiếp nhận dữ liệu
 
-Neu push that bai:
+Hub thực hiện theo chu kỳ hoặc theo nhu cầu:
 
-- Du lieu van con tren may
-- Tram tiep tuc lam viec binh thuong
-- Thuc hien gui lai khi co mang hoac khi loi da duoc khac phuc
+- kiểm tra branch nào có dữ liệu mới
+- review thay đổi nếu cần
+- merge từng branch trạm vào `main`
+- chạy aggregate và build DuckDB để tổng hợp
 
-## 10. Quy trinh HQ tiep nhan va tong hop du lieu
+Lưu ý:
 
-HQ thuc hien theo chu ky hoac theo nhu cau:
+- push thành công từ trạm không có nghĩa là dữ liệu đã vào `main`
+- dữ liệu chỉ được xem là đã vào kho tổng hợp khi Hub merge thành công
 
-- Kiem tra cac branch cua tram
-- Xac nhan branch nao co du lieu moi
-- Review thay doi neu can
-- Merge tung branch tram ve nhanh tong hop `main`
-- Tong hop bao cao tu du lieu da merge
+---
 
-Luu y:
+## 11. Bảo mật
 
-- Push thanh cong tu tram khong dong nghia du lieu da vao `main`
-- Du lieu chi duoc coi la da vao kho tong hop sau khi HQ merge thanh cong
+- Tài khoản GitHub của trạm là tài sản vận hành của trạm
+- Token đăng nhập là thông tin nhạy cảm
+- Không commit file chứa token
+- Không chia sẻ tài khoản trạm cho đơn vị khác
+- Khi nghi ngờ lộ tài khoản hoặc mất máy, phải báo Hub ngay
 
-## 11. Quy dinh ve thay doi nhan su tai tram
+---
 
-Khi doi nguoi thao tac nhung tram khong thay doi:
+## 12. Xử lý sự cố
 
-- Khong can tao user moi trong mo hinh van hanh
-- Tiep tuc dung tai khoan GitHub cua tram
-- Ban giao noi bo tai tram theo quy trinh cua don vi
+### Không đăng nhập được
 
-Khi tach hoac doi tram:
+Kiểm tra:
 
-- HQ phai cap danh tinh tram moi
-- Khong dung chung branch cu cho tram moi
-- Khong tu y doi ten tai khoan hoac doi nhanh giua chung
+- có mạng hay không
+- tài khoản GitHub còn quyền repo hay không
 
-## 12. Quy dinh ve bao mat
+Nếu không tự xử lý được thì báo Hub.
 
-- Tai khoan GitHub cua tram la tai san van hanh cua tram
-- Token dang nhap luu tren may la thong tin nhay cam
-- Khong commit file cau hinh chua token
-- Khong chia se tai khoan tram cho don vi khac
-- Khi nghi ngo lo tai khoan hoac may bi mat, tram phai bao HQ ngay de thu hoi hoac thay token
+### Push thất bại
 
-## 13. Xu ly su co
+Trạm:
 
-### 13.1. Khong dang nhap duoc
+- không xóa dữ liệu local
+- ghi nhận thông báo lỗi
+- thử lại khi có mạng
+- nếu cần an toàn hơn trước khi xử lý tiếp, xuất `DB snapshot` và báo Hub/Admin
 
-Tram kiem tra:
+Hub:
 
-- Co mang hay khong
-- Tai khoan GitHub cua tram con quyen repo hay khong
+- kiểm tra quyền repo, remote, branch và trạng thái hệ thống
 
-Neu khong tu xu ly duoc thi bao HQ.
+### Sai tên trạm hoặc sai metadata
 
-### 13.2. Push that bai
+- dừng nhập liệu thật
+- báo Hub để kiểm tra mapping trạm, branch và tài khoản
 
-Tram:
+### Conflict khi merge
 
-- Khong xoa du lieu local
-- Ghi nhan thong bao loi
-- Thu lai khi co mang
+- Hub chịu trách nhiệm xử lý conflict ở cấp tổng hợp
+- Trạm không tự ý sửa lịch sử Git nếu chưa có hướng dẫn
 
-HQ:
+---
 
-- Kiem tra quyen repo, remote, branch va trang thai he thong
+## 13. Điều cấm
 
-### 13.3. Sai ten tram hoac sai metadata
+- dùng tài khoản GitHub cá nhân để vận hành chính thức
+- tự ý đổi tên branch trạm
+- tự ý sửa metadata trạm
+- xóa dữ liệu local để “sửa lỗi sync” khi chưa được hướng dẫn
+- dùng lẫn nhiều tài khoản trên cùng máy vận hành chính thức nếu chưa có quy trình rõ ràng
 
-Tram phai dung nhap lieu that va bao HQ.
+---
 
-HQ kiem tra:
+## 14. Kết luận
 
-- Ten branch hien tai
-- Mapping tram
-- Tai khoan dang dung co dung la tai khoan tram khong
+CareVL vận hành theo nguyên tắc:
 
-### 13.4. Conflict khi merge
+- `Một trạm = một danh tính vận hành`
+- `Một trạm = một tài khoản GitHub đại diện`
+- `Một trạm = một branch dữ liệu riêng`
+- `Dữ liệu quản lý theo trạm, không theo cá nhân`
 
-HQ chiu trach nhiem xu ly conflict o cap tong hop.
-
-Tram khong tu y sua lich su Git neu chua co huong dan tu HQ.
-
-## 14. Dieu cam
-
-- Dung tai khoan GitHub ca nhan de van hanh chinh thuc thay cho tai khoan tram
-- Tu y doi ten branch tram
-- Tu y sua metadata tram ma khong co phe duyet
-- Xoa du lieu local de "sua loi sync" khi chua duoc huong dan
-- Dang nhap lan lon nhieu tai khoan tren cung may van hanh chinh thuc neu chua co quy trinh ro rang
-
-## 15. Ket luan van hanh
-
-CareVL duoc van hanh theo nguyen tac:
-
-- `Mot tram = mot danh tinh van hanh`
-- `Mot tram = mot tai khoan GitHub dai dien`
-- `Mot tram = mot branch du lieu rieng`
-- `Du lieu quan ly theo tram, khong theo ca nhan`
-
-Quy uoc nay la nen tang de:
-
-- De trien khai
-- De dao tao
-- De tong hop du lieu
-- Giam loi do nham user, nham branch, nham trach nhiem
+Đây là nền tảng để triển khai, đào tạo, tổng hợp dữ liệu và giảm lỗi vận hành.

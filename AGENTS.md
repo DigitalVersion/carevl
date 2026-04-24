@@ -1,236 +1,215 @@
-# AGENTS.md — CareVL Development Guide
+# AGENTS.md — Hướng Dẫn Phát Triển CareVL
 
-> **IMPORTANT: Read this file before making ANY changes!**
-
----
-
-## Project Overview
-
-**CareVL** (Care Vinh Long) — Desktop health record management app for Vietnam's Vinh Long province.
-
-- **Stack**: Python 3.11+, CustomTkinter, JSON files, Git sync
-- **Platform**: Windows, offline-first
-- **Auth**: GitHub OAuth Device Flow
+> **Quan trọng: Đọc file này trước khi sửa bất kỳ phần nào trong repo.**
 
 ---
 
-## Common Mistakes to AVOID
+## Tổng quan dự án
 
-### 1. NEVER use `cd` in shell commands
-```bash
-# BAD
+**CareVL** (Care Vinh Long) là ứng dụng desktop quản lý hồ sơ khám sức khỏe cho tỉnh Vĩnh Long.
+
+- **Stack**: Python 3.11+, CustomTkinter, SQLite local, Git sync, DuckDB cho Hub
+- **Nền tảng**: Windows, offline-first
+- **Xác thực**: GitHub OAuth Device Flow
+
+---
+
+## Những lỗi cần tránh
+
+### 1. Không dùng `cd` trong lệnh shell
+
+```powershell
+# Sai
 cd somedir && command
 
-# GOOD
+# Đúng
 command args
-# OR use workdir parameter
 ```
 
-### 2. NEVER use `&&` in shell commands (PowerShell)
-```bash
-# BAD
+Hãy dùng `workdir` của tool thay vì đổi thư mục trong lệnh.
+
+### 2. Không dùng `&&` trong PowerShell
+
+```powershell
+# Sai
 cmd1 && cmd2
 
-# GOOD
+# Đúng
 cmd1; if ($?) { cmd2 }
-# OR run separately
 ```
 
-### 3. NEVER hardcode module imports that will fail
-- OMR modules require `reportlab`, `qrcode` — use lazy import
-- If adding deps, update `.venv` with `uv sync` after pyproject.toml changes
-- Always test with `uv run python -c "from modules import X"`
+### 3. Không hardcode import làm vỡ lazy import
 
-### 4. NEVER assume Python in PATH
-- Use `uv run python` or `.venv\Scripts\python.exe`
-- Check with `uv run python --version`
+- Các module OMR có thể cần `reportlab`, `qrcode`, nên phải giữ cơ chế lazy import.
+- Khi thêm dependency, chạy `uv sync`.
+- Luôn test import bằng `uv run python -c "from modules import X"`.
 
-### 5. Be careful with string escapes
-- In Vietnamese text use ASCII only or real quotes: `'` and `"`
-- DON'T use smart quotes like `'` or `"`
-- DON'T use curly braces `{}` in code unless intentional
+### 4. Không giả định `python` có trong `PATH`
+
+- Dùng `uv run python`
+- Hoặc `.venv\Scripts\python.exe`
+
+### 5. Cẩn thận với encoding và ký tự
+
+- Tất cả file text phải dùng UTF-8
+- Văn bản tiếng Việt phải dùng dấu chuẩn
+- Không dùng smart quotes
+- Không chèn `{}` nếu không có chủ đích trong code
 
 ---
 
-## Project Structure
+## Cấu trúc chính
 
-```
+```text
 carevl/
-├── main.py                 # Entry point
-├── launcher.bat            # Auto-update launcher
-├── pyproject.toml          # Dependencies
+├── main.py
+├── launcher.bat
+├── pyproject.toml
 ├── .gitignore
-│
 ├── config/
-│   ├── template_form.json  # Form config (OTA-updatable)
-│   ├── user_config.json  # OAuth token (NEVER commit!)
-│   ├── omr_form_layout.json
-│   └── omr_templates/
-│       ├── NCT.json
-│       ├── HS.json
-│       └── ...
-│
 ├── data/
-│   └── YYYY/MM/DD-MM-YYYY.json
-│
+│   └── carevl.db
 ├── modules/
-│   ├── __init__.py       # LAZY IMPORT - don't break!
-│   ├── auth.py         # OAuth
-│   ├── crud.py         # JSON operations
-│   ├── sync.py         # Git operations
-│   ├── paths.py        # Path utilities
-│   ├── validator.py    # Validation
-│   ├── form_engine.py # Form rendering
-│   ├── omr_form_gen.py  # OMR PDF generator
-│   ├── omr_reader.py   # OMR scanner
-│   └── omr_bridge.py  # OMR → record mapper
-│
 ├── ui/
-│   ├── app.py         # Main app
-│   ├── screen_list.py # Patient list
-│   ├── screen_form.py# Form entry
-│   └── screen_sync.py # Sync screen
-│
 └── dist/
-    └── carevl.exe     # Built executable
 ```
+
+### `config/`
+
+- `template_form.json`: cấu hình form động
+- `user_config.json`: token OAuth, không được commit
+- `omr_form_layout.json`: layout OMR
+- `omr_templates/`: template OMR theo gói khám
+
+### `data/`
+
+- `carevl.db`: SQLite local dùng cho runtime
+
+### `modules/`
+
+- `__init__.py`: lazy import, không được làm hỏng
+- `auth.py`: đăng nhập GitHub
+- `crud.py`: facade runtime
+- `crud_phase2.py`: CRUD SQLite phase 2
+- `record_store.py`: storage facade
+- `sync.py`: Git push/pull
+- `validator.py`: validate dữ liệu
+- `form_engine.py`: render form động
+- `omr_*`: pipeline OMR
+
+### `ui/`
+
+- `app.py`: app chính
+- `screen_list.py`: danh sách hồ sơ
+- `screen_form.py`: nhập và sửa hồ sơ
+- `screen_sync.py`: đồng bộ
 
 ---
 
-## Critical Files
+## File quan trọng
 
-### `modules/__init__.py` — LAZY IMPORT
-This file uses `importlib` to lazy-load modules. **NEVER break this!**
+### `modules/__init__.py`
 
-```python
-import sys
-import os
+File này dùng `importlib` để lazy-load module. Không được đổi sang kiểu import trực tiếp làm vỡ hành vi runtime.
 
-def __getattr__(name):
-    from importlib import import_module
-    
-    core_modules = {
-        "auth": "modules.auth",
-        "crud": "modules.crud",
-        # ... more modules
-    }
-    
-    if name in core_modules:
-        return import_module(core_modules[name])
-    raise AttributeError(f"module has no attribute '{name}'")
-```
+### `config/user_config.json`
 
-If you import directly like `from modules import auth`, the import may fail during `uv run`. Always use `uv run python` for testing.
+Chứa token OAuth. Phải nằm trong `.gitignore`. Không commit.
 
 ---
 
-### `config/user_config.json` — NEVER COMMIT
-This file contains OAuth tokens. It must be in `.gitignore`.
+## Khi thêm dependency
+
+1. Cập nhật `pyproject.toml`
+2. Chạy `uv sync`
+3. Test import bằng `uv run python -c "import ten_goi; print('OK')"`
 
 ---
 
-## Adding New Dependencies
+## Cách test cơ bản
 
-1. Add to `pyproject.toml`:
-```toml
-dependencies = [
-    "customtkinter>=5.2.0",
-    "requests>=2.31.0",
-    "tksheet>=7.0.0",
-    "new_package>=1.0.0",  # Add here
-]
-```
-
-2. Rebuild venv:
-```bash
-uv sync
-```
-
-3. Test:
-```bash
-uv run python -c "import new_package; print('OK')"
-```
-
----
-
-## Testing
-
-```bash
-# Test app runs
+```powershell
+# Chạy app
 uv run python main.py
 
-# Test specific module
+# Kiểm tra backend lưu trữ hiện tại
+uv run python -c "from modules import record_store; print(record_store.get_storage_path())"
+
+# Kiểm tra import module
 uv run python -c "from modules import crud; print('OK')"
 
-# Test with args
+# Kiểm tra lệnh OMR
 uv run python -m modules.omr_form_gen --help
 ```
 
 ---
 
-## Building Executable
+## Build executable
 
-```bash
+```powershell
 uv run pyinstaller --onefile --windowed --name carevl main.py
 ```
 
-Output in `dist/carevl.exe`.
+Output ở `dist/carevl.exe`.
 
 ---
 
-## Code Style
+## Quy ước code
 
-- **Imports**: Use lazy import pattern from `modules/__init__.py`
-- **No comments** unless requested
-- **UTF-8** for all text files
-- **Vietnamese**: Use ASCII or proper encoding, no smart quotes
+- Giữ lazy import
+- Dùng UTF-8 cho toàn bộ file text
+- Ưu tiên tiếng Việt có dấu trong tài liệu và UI
+- Không thêm comment thừa nếu code đã rõ
 
 ---
 
-## OMR Pipeline
+## Pipeline OMR
 
-Standalone modules, NOT integrated into main app menu:
+Các module OMR chạy độc lập, chưa tích hợp thành menu chính trong app:
 
-```bash
-# Generate PDF from CCCD data
+```powershell
+# Tạo PDF từ CCCD
 python -m modules.omr_form_gen --cccd 001286001234 --package nct --output form.pdf
 
-# Scan batch
+# Đọc batch scan
 python -m modules.omr_reader --input scans/ --output results/ --package nct --json results.json
 
-# Map + Save
+# Map và lưu
 python -m modules.omr_bridge --input results.json --package nct --save --author bacsi01
 ```
 
 ---
 
-## Key Commands
+## Lệnh hay dùng
 
-| Task | Command |
-|------|---------|
-| Run app | `uv run python main.py` |
-| Sync deps | `uv sync` |
+| Tác vụ | Lệnh |
+|---|---|
+| Chạy app | `uv run python main.py` |
+| Đồng bộ dependency | `uv sync` |
 | Test import | `uv run python -c "from modules import X"` |
 | Build exe | `uv run pyinstaller --onefile --windowed --name carevl main.py` |
-| Run OMR gen | `uv run python -m modules.omr_form_gen --help` |
-| Run OMR read | `uv run python -m modules.omr_reader --help` |
+| OMR gen | `uv run python -m modules.omr_form_gen --help` |
+| OMR read | `uv run python -m modules.omr_reader --help` |
 
 ---
 
-## Troubleshooting
+## Xử lý sự cố
 
-### "reportlab not installed" error
-- Run `uv sync` to rebuild venv
-- Or `Remove-Item .venv -Recurse -Force; uv sync`
+### Thiếu `reportlab`
 
-### Import errors
-- Always use `uv run python` not bare `python`
-- Check modules lazy import in `modules/__init__.py`
+- Chạy `uv sync`
+- Nếu cần, xóa `.venv` rồi sync lại
 
-### JSON encoding errors
-- Use UTF-8: `open(file, "w", encoding="utf-8")`
-- Use `ensure_ascii=False` in `json.dump()`
+### Lỗi import
+
+- Dùng `uv run python`, không dùng `python` trần
+- Kiểm tra lại lazy import trong `modules/__init__.py`
+
+### Lỗi encoding JSON
+
+- Dùng `encoding="utf-8"`
+- Dùng `ensure_ascii=False` khi ghi JSON
 
 ---
 
-*Last updated: 2026-04-23*
+*Cập nhật gần nhất: 2026-04-24*
