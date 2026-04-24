@@ -14,6 +14,16 @@
 
 ---
 
+## Quy ước branch
+
+- `main` là nhánh chính, luôn ưu tiên giữ ở trạng thái ổn định để sử dụng thật.
+- `canary` là nhánh phát triển tích lũy hằng ngày giữa mình và agent.
+- Tính năng mới, refactor, sửa lỗi không khẩn cấp: làm trên `canary`.
+- Khi đã test ổn trên `canary`, mới gộp vào `main`.
+- Nếu có hotfix cần sửa trực tiếp trên `main`, phải gộp ngược lại sang `canary` sớm để tránh lệch nhánh.
+
+---
+
 ## Những lỗi cần tránh
 
 ### 1. Không dùng `cd` trong lệnh shell

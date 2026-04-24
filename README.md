@@ -47,6 +47,15 @@
 
 ---
 
+## Quy ước branch phát triển
+
+- `main`: nhánh chính, giữ ổn định để sử dụng thật.
+- `canary`: nhánh phát triển chung, dùng để làm tính năng mới, refactor và test tích lũy.
+- Khi mọi thứ ổn trên `canary`, merge về `main`.
+- Nếu có hotfix làm trực tiếp trên `main`, cần merge ngược lại `canary` sau đó.
+
+---
+
 ## Cài đặt và onboarding
 
 - ✅ **Offline-first**: Hoạt động hoàn toàn không cần mạng
