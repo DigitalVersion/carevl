@@ -20,6 +20,14 @@ if not defined CURRENT_BRANCH (
     exit /b 1
 )
 
+if /I not "!CURRENT_BRANCH!"=="canary" (
+    echo [ERROR] Please run this script while checked out on canary.
+    echo [INFO] Current branch: !CURRENT_BRANCH!
+    echo.
+    pause
+    exit /b 1
+)
+
 for /f "usebackq delims=" %%i in (`powershell -NoProfile -Command "[DateTime]::Now.ToString('yyyy-MM-dd HH:mm:ss')"` ) do set MERGE_MESSAGE=%%i
 if not defined MERGE_MESSAGE (
     echo [ERROR] Could not generate merge commit message from current time.
@@ -44,10 +52,9 @@ echo        1. update canary from origin/canary
 echo        2. git add all local changes on canary
 echo        3. commit canary with message "!MERGE_MESSAGE!"
 echo        4. push canary to origin
-echo        5. update main from origin/main
-echo        6. fast-forward main to canary
+echo        5. verify origin/main can fast-forward to canary
+echo        6. move local main to canary without switching branch
 echo        7. push main to origin
-echo        8. switch back to canary
 echo.
 choice /C YN /N /M "Continue? [Y/N]: "
 if errorlevel 2 (
@@ -62,12 +69,8 @@ echo [INFO] Fetching latest changes from origin...
 git fetch origin
 if errorlevel 1 goto :error
 
-echo [INFO] Switching to canary...
-git switch canary
-if errorlevel 1 goto :error
-
 echo [INFO] Updating local canary from origin/canary...
-git pull --ff-only origin canary
+git merge --ff-only origin/canary
 if errorlevel 1 goto :error
 
 echo [INFO] Staging all local changes on canary...
@@ -93,24 +96,20 @@ if defined HAS_STAGED_CHANGES (
     echo [INFO] No local changes to commit on canary.
 )
 
-echo [INFO] Switching to main...
-git switch main
+echo [INFO] Refreshing origin refs before updating main...
+git fetch origin
 if errorlevel 1 goto :error
 
-echo [INFO] Updating local main from origin/main...
-git pull --ff-only origin main
+echo [INFO] Verifying origin/main can fast-forward to canary...
+git merge-base --is-ancestor origin/main canary
 if errorlevel 1 goto :error
 
-echo [INFO] Fast-forwarding main to canary...
-git merge --ff-only canary
+echo [INFO] Moving local main to canary without switching branch...
+git branch -f main canary
 if errorlevel 1 goto :error
 
 echo [INFO] Pushing main to origin...
 git push origin main
-if errorlevel 1 goto :error
-
-echo [INFO] Switching back to canary...
-git switch canary
 if errorlevel 1 goto :error
 
 echo.
