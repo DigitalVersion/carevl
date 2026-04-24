@@ -107,7 +107,14 @@ class AdminApp(ctk.CTk):
 
         self.is_running = False
         self._setup_ui()
+        self.after(0, self._maximize_window)
         self._refresh_summary()
+
+    def _maximize_window(self):
+        try:
+            self.state("zoomed")
+        except Exception:
+            self.attributes("-zoomed", True)
 
     def _setup_ui(self):
         self.grid_columnconfigure(0, weight=1)
