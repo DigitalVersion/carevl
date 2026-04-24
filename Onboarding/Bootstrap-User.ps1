@@ -44,17 +44,17 @@ function Start-CareVlPython {
     }
 
     $venvPython = Join-Path $RepoRoot ".venv\Scripts\python.exe"
-    if (-not (Test-Path $venvPython)) {
-        Write-Step "Chua co .venv, dang chay uv sync..."
-        & uv sync
-        if (-not $?) {
-            throw "uv sync that bai."
-        }
-    }
-
-    Write-Step "Mo app bang uv run python main.py"
     Push-Location $RepoRoot
     try {
+        if (-not (Test-Path $venvPython)) {
+            Write-Step "Chua co .venv, dang chay uv sync..."
+            & uv sync
+            if (-not $?) {
+                throw "uv sync that bai."
+            }
+        }
+
+        Write-Step "Mo app bang uv run python main.py"
         & uv run python main.py
     }
     finally {
