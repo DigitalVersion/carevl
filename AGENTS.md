@@ -16,6 +16,7 @@ Các quyết định hiện tại của hệ thống.
 - [09. Phase 2 Schema Spec](AGENTS/ACTIVE/09_Phase2_Schema_Spec.md)
 - [10. Quy chế vận hành](AGENTS/ACTIVE/10_Quy_Che_Van_Hanh.md)
 - [11. Workflow](AGENTS/ACTIVE/11_Workflow.md)
+- [12. UI/UX Data Flow: Intake to Delayed Results](AGENTS/ACTIVE/12_ui_ux_flow.md)
 
 ---
 

@@ -7,7 +7,7 @@ from app.api.admin_routes import router as admin_router
 from app.core.database import engine, Base
 from contextlib import asynccontextmanager
 from apscheduler.schedulers.background import BackgroundScheduler
-from app.models.encounter import Encounter  # noqa: F401
+import app.models  # noqa: F401
 from app.services.snapshot import scheduled_snapshot_job
 
 # Initialize the database tables if they don't exist
