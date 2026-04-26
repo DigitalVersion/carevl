@@ -1,16 +1,26 @@
-# AGENTS.md — Mục Lục Hướng Dẫn Phát Triển CareVL
+# Continuous Memory Vault — Bản đồ Kiến trúc CareVL
 
-> **Quan trọng: Đọc các file liên quan trước khi sửa bất kỳ phần nào trong repo.**
-
-Dự án đã được phân chia tài liệu hướng dẫn thành các module nhỏ để dễ theo dõi. Vui lòng tham khảo các tệp tin dưới đây trong thư mục `AGENTS/`:
-
-- [01. Tổng quan dự án & Quy ước branch](AGENTS/01_overview.md)
-- [02. Hướng dẫn Coding & Những lỗi cần tránh](AGENTS/02_guidelines.md)
-- [03. Kiến trúc và Cấu trúc dự án](AGENTS/03_architecture.md)
-- [04. Quy trình Phát triển](AGENTS/04_development.md)
-- [05. OMR Pipeline (Legacy)](AGENTS/05_omr_pipeline.md)
-- [06. Xử lý sự cố (Troubleshooting)](AGENTS/06_troubleshooting.md)
+> **Quy tắc chung**: Hệ thống tài liệu này hoạt động như một bộ nhớ vĩnh cửu. Không được sửa file cũ nếu đã thay đổi thiết kế cốt lõi. Hãy tạo file mới trong `ACTIVE` và dời file cũ sang `ARCHIVE`. Tất cả tài liệu phải tuân thủ chuẩn [ADR (Architecture Decision Record)](https://adr.github.io/).
 
 ---
 
-*Cập nhật gần nhất: 2026-04-26*
+## 🟢 ACTIVE (Tính năng & Kiến trúc đang chạy)
+Các quyết định hiện tại của hệ thống.
+
+- [01. FastAPI Core Architecture](AGENTS/ACTIVE/01_FastAPI_Core.md)
+- [02. SQLite Security & Snapshots](AGENTS/ACTIVE/02_SQLite_Security.md)
+- [03. Web UI & HTMX Interaction](AGENTS/ACTIVE/03_Web_UI_HTMX.md)
+- [04. Development Guidelines & Troubleshooting](AGENTS/ACTIVE/04_Development_Guidelines.md)
+- [07. Active Sync Proposal: Chủ động đóng gói dữ liệu sạch (Sprint 4)](AGENTS/ACTIVE/07_active_sync_proposal.md)
+
+---
+
+## 🗄️ ARCHIVE (Lịch sử & Tính năng đã thay thế)
+Các quyết định đã bị thay thế hoặc bỏ đi, được lưu lại để giải thích "tại sao không dùng cách này".
+
+- [05. Legacy CustomTkinter App](AGENTS/ARCHIVE/05_Legacy_Tkinter_App.md)
+- [06. Legacy OMR Pipeline](AGENTS/ARCHIVE/06_Legacy_OMR_Pipeline.md)
+
+---
+
+*Cập nhật lần cuối: 2026-04-26*
