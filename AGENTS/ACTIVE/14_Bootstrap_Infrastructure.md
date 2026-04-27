@@ -1,7 +1,7 @@
 # Bootstrap Infrastructure: One-Liner Setup
 
 ## Status
-**[Active]**
+**[Active - Implemented]**
 
 ## Context
 Các trạm y tế cần cài đặt hệ thống nhanh chóng mà không cần kiến thức kỹ thuật. Cần có script tự động cài đặt mọi thứ cần thiết chỉ với 1 dòng lệnh.
@@ -171,3 +171,7 @@ Write-Host "Setup completed successfully!"
 - Cài winget mất 5-10 phút (quá lâu)
 - Chỉ cần để cài Git, không đáng
 - Tải installer trực tiếp nhanh hơn nhiều
+
+## Lịch sử thay đổi (Changelog)
+- **2026-04-27**: Kiro - Tạo tài liệu kế hoạch cho tính năng Bootstrap Infrastructure
+- **2026-04-27**: Kiro - Tối ưu script setup.ps1: Skip cài winget, giảm thời gian từ 10-15 phút xuống 2-3 phút cho máy không có winget
