@@ -251,17 +251,20 @@ function Ensure-EnvFile {
 
 function Create-Shortcut {
     param([int]$Port)
-    Write-Step "Tao file start_carevl.bat va Desktop Shortcut..."
+    Write-Step "Tao file start_carevl.bat..."
 
-    # Tạo file .bat
+    # Tạo file .bat (PHẢI dùng call trước uv run)
     $batPath = Join-Path $TargetDir "start_carevl.bat"
-    $batContent = "@echo off`ncd /d `"$TargetDir`"`nuv run uvicorn app.main:app --host 0.0.0.0 --port $Port"
+    $batContent = "@echo off`ncd /d `"$TargetDir`"`ncall uv run uvicorn app.main:app --host 0.0.0.0 --port $Port`npause"
     Set-Content -Path $batPath -Value $batContent
     Write-Info "Da tao file: $batPath"
 
-    # Tạo shortcut bằng PowerShell (không dùng COM object)
+    # Thử tạo shortcut (không bắt buộc, nếu lỗi thì bỏ qua)
+    Write-Step "Dang thu tao Desktop Shortcut..."
+    $shortcutCreated = $false
+    
     try {
-        $WshShell = New-Object -ComObject WScript.Shell
+        $WshShell = New-Object -ComObject WScript.Shell -ErrorAction Stop
         $DesktopPath = [Environment]::GetFolderPath("Desktop")
         $ShortcutPath = Join-Path $DesktopPath "CareVL Vĩnh Long.lnk"
         
@@ -270,56 +273,44 @@ function Create-Shortcut {
         $Shortcut.WorkingDirectory = $TargetDir
         $Shortcut.IconLocation = "shell32.dll,273"
         $Shortcut.Description = "Khoi dong he thong CareVL Vinh Long"
-        $Shortcut.WindowStyle = 7 # Minimized
+        $Shortcut.WindowStyle = 7
         $Shortcut.Save()
         
+        $shortcutCreated = $true
         Write-Info "Da tao shortcut: $ShortcutPath"
     }
     catch {
-        Write-Host "Khong the tao shortcut bang COM object, dung phuong an fallback..." -ForegroundColor Yellow
-        
-        # Fallback: Tạo shortcut bằng VBScript
-        $DesktopPath = [Environment]::GetFolderPath("Desktop")
-        $ShortcutPath = Join-Path $DesktopPath "CareVL Vĩnh Long.lnk"
-        
-        $vbsScript = @"
-Set oWS = WScript.CreateObject("WScript.Shell")
-sLinkFile = "$ShortcutPath"
-Set oLink = oWS.CreateShortcut(sLinkFile)
-oLink.TargetPath = "$batPath"
-oLink.WorkingDirectory = "$TargetDir"
-oLink.IconLocation = "shell32.dll,273"
-oLink.Description = "Khoi dong he thong CareVL Vinh Long"
-oLink.WindowStyle = 7
-oLink.Save
-"@
-        
-        $vbsPath = Join-Path $env:TEMP "create_shortcut.vbs"
-        Set-Content -Path $vbsPath -Value $vbsScript
-        & cscript //nologo $vbsPath
-        Remove-Item $vbsPath -ErrorAction SilentlyContinue
-        
-        if (Test-Path $ShortcutPath) {
-            Write-Info "Da tao shortcut: $ShortcutPath"
-        } else {
-            Write-Host "CANH BAO: Khong the tao shortcut. Vui long tao shortcut thu cong cho file: $batPath" -ForegroundColor Yellow
-        }
+        Write-Host "Khong the tao shortcut (Windows Sandbox hoac COM object bi chan)" -ForegroundColor Yellow
+        Write-Host "Ban co the chay truc tiep file: $batPath" -ForegroundColor Yellow
+    }
+    
+    return @{
+        BatPath = $batPath
+        ShortcutCreated = $shortcutCreated
     }
 }
 
 function Start-Server {
-    param([int]$Port)
+    param(
+        [int]$Port,
+        [string]$BatPath
+    )
     Write-Step "Dang dong bo moi truong Python..."
     Push-Location $TargetDir
     try {
         & uv sync
 
         Write-Step "Khoi dong he thong..."
-        $process = Start-Process -FilePath (Join-Path $TargetDir "start_carevl.bat") -PassThru -WindowStyle Minimized
+        $process = Start-Process -FilePath $BatPath -PassThru -WindowStyle Minimized
 
         Start-Sleep -Seconds 3
         Start-Process "http://localhost:$Port/login"
-        Write-Step "Cai dat hoan tat! He thong dang chay tai http://localhost:$Port"
+        
+        Write-Host ""
+        Write-Host "=== CAI DAT HOAN TAT! ===" -ForegroundColor Green
+        Write-Host "He thong dang chay tai: http://localhost:$Port" -ForegroundColor Green
+        Write-Host "File khoi dong: $BatPath" -ForegroundColor Cyan
+        Write-Host ""
     }
     finally {
         Pop-Location
@@ -346,8 +337,8 @@ try {
 
     Configure-Firewall -Port $targetPort
     Ensure-EnvFile -Port $targetPort
-    Create-Shortcut -Port $targetPort
-    Start-Server -Port $targetPort
+    $shortcutInfo = Create-Shortcut -Port $targetPort
+    Start-Server -Port $targetPort -BatPath $shortcutInfo.BatPath
 
     Write-Step "=== HOAN TAT! ==="
     Write-Host ""
