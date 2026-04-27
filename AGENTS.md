@@ -2,6 +2,35 @@
 
 > **Quy tắc chung**: Hệ thống tài liệu này hoạt động như một bộ nhớ vĩnh cửu. Không được sửa file cũ nếu đã thay đổi thiết kế cốt lõi. Hãy tạo file mới trong `ACTIVE` và dời file cũ sang `ARCHIVE`. Tất cả tài liệu phải tuân thủ chuẩn [ADR (Architecture Decision Record)](https://adr.github.io/).
 
+## 📋 Quy tắc viết tài liệu (BẮT BUỘC)
+
+1. **Tất cả tài liệu kỹ thuật phải ở trong thư mục `AGENTS/`**
+   - `AGENTS/ACTIVE/`: Tài liệu về kiến trúc, quyết định kỹ thuật đang áp dụng
+   - `AGENTS/FEATURES/`: Tài liệu về các tính năng nghiệp vụ
+   - `AGENTS/ARCHIVE/`: Tài liệu về kiến trúc/tính năng đã bỏ (để giải thích "tại sao không dùng")
+   - `AGENTS/ASSETS/`: Hình ảnh, mockup, screenshot
+
+2. **KHÔNG được tạo file `.md` tùy tiện ở ngoài thư mục `AGENTS/`**
+   - ❌ Sai: `scripts/README.md`, `docs/guide.md`, `SETUP.md`
+   - ✅ Đúng: `AGENTS/ACTIVE/16_Setup_Guide.md`
+
+3. **Mọi tài liệu mới phải được link từ `AGENTS.md`**
+   - Thêm vào section `ACTIVE`, `FEATURES`, hoặc `ARCHIVE` tương ứng
+   - Đảm bảo dễ tìm và có cấu trúc rõ ràng
+
+4. **Format tài liệu theo chuẩn ADR**
+   - `## Status`: [Active], [Active - Implemented], [Deprecated], [Planned]
+   - `## Context`: Bối cảnh, vấn đề cần giải quyết
+   - `## Decision`: Quyết định kỹ thuật
+   - `## Rationale`: Lý do tại sao chọn giải pháp này
+   - `## Related Documents`: Link đến các tài liệu liên quan
+
+5. **Khi thay đổi thiết kế cốt lõi**
+   - KHÔNG sửa file cũ
+   - Tạo file mới trong `ACTIVE` với số thứ tự tiếp theo
+   - Dời file cũ sang `ARCHIVE`
+   - Cập nhật link trong `AGENTS.md`
+
 ## ⚙️ Feature Syncing Protocol (Bắt buộc)
 **Mọi thay đổi về Feature đều phải được phản ánh vào tài liệu.**
 Ở bước Finalize (trước khi gọi công cụ `submit`), Agent bắt buộc phải thực hiện quy trình sau:
