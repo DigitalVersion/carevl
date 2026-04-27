@@ -36,105 +36,99 @@ function Add-PathIfExists {
     }
 }
 
-function Ensure-Winget {
+function Test-Winget {
+    # Chi check xem co winget khong, KHONG cai dat neu chua co
+    # Ly do: Cai winget mat 5-10 phut, khong dang
     if (Test-Command "winget") {
+        Write-Info "Winget da co san, se dung winget de cai dat."
         return $true
     }
-
-    Write-Step "Khong tim thay winget, dang thu cai dat chu dong..."
-    try {
-        $wingetReleaseUrl = "https://api.github.com/repos/microsoft/winget-cli/releases/latest"
-        $release = Invoke-RestMethod -Uri $wingetReleaseUrl
-
-        $vclibsAsset = $release.assets | Where-Object { $_.name -match 'Microsoft.VCLibs.x64.*\.appx$' } | Select-Object -First 1
-        if ($vclibsAsset) {
-            Write-Info "Tai VCLibs..."
-            $vclibsPath = Join-Path $env:TEMP $vclibsAsset.name
-            Invoke-WebRequest -Uri $vclibsAsset.browser_download_url -OutFile $vclibsPath
-            Add-AppxPackage -Path $vclibsPath
-        }
-
-        $appxAsset = $release.assets | Where-Object { $_.name -match 'Microsoft.DesktopAppInstaller_8wekyb3d8bbwe.msixbundle' } | Select-Object -First 1
-        if ($appxAsset) {
-            Write-Info "Tai DesktopAppInstaller..."
-            $appxPath = Join-Path $env:TEMP $appxAsset.name
-            Invoke-WebRequest -Uri $appxAsset.browser_download_url -OutFile $appxPath
-            Add-AppxPackage -Path $appxPath
-        }
-
-        if (Test-Command "winget") {
-            return $true
-        }
-    } catch {
-        Write-Host "Khong the cai dat chu dong winget. Se dung phuong an Fallback." -ForegroundColor Yellow
-    }
+    Write-Info "Khong tim thay winget, se cai truc tiep tu installer (nhanh hon)."
     return $false
 }
 
-function Install-GitWithoutWinget {
-    $apiUrl = "https://api.github.com/repos/git-for-windows/git/releases/latest"
+function Install-GitDirect {
     Write-Step "Dang tai Git tu GitHub release chinh thuc..."
+    $apiUrl = "https://api.github.com/repos/git-for-windows/git/releases/latest"
     $release = Invoke-RestMethod -Uri $apiUrl -Headers @{ "User-Agent" = "CareVL-Bootstrap" }
     $asset = $release.assets | Where-Object { $_.name -match '^Git-.*-64-bit\.exe$' } | Select-Object -First 1
+    
     if (-not $asset) {
         throw "Khong tim thay file cai Git x64."
     }
 
     $installerPath = Join-Path $env:TEMP $asset.name
+    Write-Info "Dang tai $($asset.name)..."
     Invoke-WebRequest -Uri $asset.browser_download_url -OutFile $installerPath
 
+    Write-Info "Dang cai dat Git..."
     $arguments = '/VERYSILENT /NORESTART /NOCANCEL /SP- /CLOSEAPPLICATIONS /RESTARTAPPLICATIONS /COMPONENTS="icons,ext\reg\shellhere,assoc,assoc_sh"'
     $process = Start-Process -FilePath $installerPath -ArgumentList $arguments -Wait -PassThru
+    
     if ($process.ExitCode -ne 0) {
-        throw "Cai Git that bai."
+        throw "Cai Git that bai voi exit code $($process.ExitCode)."
     }
+    
+    Remove-Item $installerPath -ErrorAction SilentlyContinue
+    Write-Info "Cai Git thanh cong!"
 }
 
-function Install-UvWithoutWinget {
+function Install-UvDirect {
     Write-Step "Dang cai uv bang installer PowerShell chinh thuc..."
     & powershell -ExecutionPolicy Bypass -NoProfile -Command "irm https://astral.sh/uv/install.ps1 | iex"
     if (-not $?) {
         throw "Cai uv that bai."
     }
+    Write-Info "Cai uv thanh cong!"
 }
 
 function Ensure-Git {
     if (Test-Command "git") {
+        Write-Info "Git da co san."
         return
     }
 
-    if (Ensure-Winget) {
+    $hasWinget = Test-Winget
+    
+    if ($hasWinget) {
         Write-Step "Cai Git bang winget..."
-        & winget install --id Git.Git -e --source winget --accept-package-agreements --accept-source-agreements
+        & winget install --id Git.Git -e --source winget --accept-package-agreements --accept-source-agreements --silent
     }
     else {
-        Install-GitWithoutWinget
+        Install-GitDirect
     }
+    
+    # Them Git vao PATH
     Add-PathIfExists "C:\Program Files\Git\cmd"
     Add-PathIfExists "$env:LOCALAPPDATA\Programs\Git\cmd"
 
     if (-not (Test-Command "git")) {
-        throw "Khong tim thay git trong PATH."
+        throw "Khong tim thay git trong PATH sau khi cai dat."
     }
 }
 
 function Ensure-Uv {
     if (Test-Command "uv") {
+        Write-Info "uv da co san."
         return
     }
 
-    if (Ensure-Winget) {
+    $hasWinget = Test-Winget
+    
+    if ($hasWinget) {
         Write-Step "Cai uv bang winget..."
-        & winget install --id AstralSoftware.UV -e --source winget --accept-package-agreements --accept-source-agreements
+        & winget install --id AstralSoftware.UV -e --source winget --accept-package-agreements --accept-source-agreements --silent
     }
     else {
-        Install-UvWithoutWinget
+        Install-UvDirect
     }
+    
+    # Them uv vao PATH
     Add-PathIfExists "$env:USERPROFILE\.local\bin"
     Add-PathIfExists "$env:LOCALAPPDATA\Programs\uv\bin"
 
     if (-not (Test-Command "uv")) {
-        throw "Khong tim thay uv trong PATH."
+        throw "Khong tim thay uv trong PATH sau khi cai dat."
     }
 }
 
@@ -221,7 +215,7 @@ function Create-Shortcut {
     Write-Step "Tao file start_carevl.bat va Desktop Shortcut..."
 
     $batPath = Join-Path $TargetDir "start_carevl.bat"
-    $batContent = "cd /d `"$TargetDir`"`nuv run uvicorn app.main:app --host 0.0.0.0 --port $Port"
+    $batContent = "@echo off`ncd /d `"$TargetDir`"`nuv run uvicorn app.main:app --host 0.0.0.0 --port $Port"
     Set-Content -Path $batPath -Value $batContent
 
     $WshShell = New-Object -ComObject WScript.Shell
@@ -248,26 +242,46 @@ function Start-Server {
 
         Start-Sleep -Seconds 3
         Start-Process "http://localhost:$Port/login"
-        Write-Step "Cai dat hoan tat!"
+        Write-Step "Cai dat hoan tat! He thong dang chay tai http://localhost:$Port"
     }
     finally {
         Pop-Location
     }
 }
 
+# ============ MAIN EXECUTION ============
+
 if (-not (Test-IsAdministrator)) {
-    throw "Hay mo PowerShell bang Run as Administrator roi chay lai script nay."
+    Write-Host "ERROR: Hay mo PowerShell bang 'Run as Administrator' roi chay lai script nay." -ForegroundColor Red
+    exit 1
 }
 
-Write-Step "Bat dau bootstrap onboarding tu GitHub (Sprint 6.1)."
-Ensure-Git
-Ensure-Uv
-Ensure-Repo
+Write-Step "=== CareVL Bootstrap - Zero Config Setup ==="
+Write-Step "Bat dau cai dat tu dong..."
 
-$targetPort = Find-AvailablePort
-Write-Info "Tim thay cong trong: $targetPort"
+try {
+    Ensure-Git
+    Ensure-Uv
+    Ensure-Repo
 
-Configure-Firewall -Port $targetPort
-Ensure-EnvFile -Port $targetPort
-Create-Shortcut -Port $targetPort
-Start-Server -Port $targetPort
+    $targetPort = Find-AvailablePort
+    Write-Info "Tim thay cong trong: $targetPort"
+
+    Configure-Firewall -Port $targetPort
+    Ensure-EnvFile -Port $targetPort
+    Create-Shortcut -Port $targetPort
+    Start-Server -Port $targetPort
+
+    Write-Step "=== HOAN TAT! ==="
+    Write-Host ""
+    Write-Host "He thong CareVL da duoc cai dat thanh cong!" -ForegroundColor Green
+    Write-Host "- Shortcut 'CareVL Vĩnh Long' da duoc tao tren Desktop" -ForegroundColor Green
+    Write-Host "- He thong dang chay tai: http://localhost:$targetPort" -ForegroundColor Green
+    Write-Host ""
+}
+catch {
+    Write-Host ""
+    Write-Host "ERROR: $($_.Exception.Message)" -ForegroundColor Red
+    Write-Host "Vui long lien he IT de duoc ho tro." -ForegroundColor Yellow
+    exit 1
+}

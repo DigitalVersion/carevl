@@ -18,11 +18,26 @@ Set-ExecutionPolicy Bypass -Scope Process -Force; iwr -useb https://raw.githubus
 
 ### Script Capabilities
 
-#### 1. Auto-Install Dependencies
-- **winget**: Tự động cài đặt Windows Package Manager nếu thiếu
-- **git**: Cài đặt qua winget
-- **uv**: Cài đặt Python package manager
-- **Python 3.11+**: Tự động cài đặt nếu thiếu
+#### 1. Auto-Install Dependencies (Smart Fallback)
+
+**Chiến lược cài đặt:**
+1. **Kiểm tra winget**: Nếu có sẵn → dùng winget (nhanh)
+2. **Nếu không có winget**: Skip cài winget, cài trực tiếp từ installer chính thức
+
+**Lý do**: Cài winget mất 5-10 phút, không đáng để chờ. Tốt hơn là tải installer trực tiếp.
+
+**Dependencies cần cài:**
+- **Git**: 
+  - Nếu có winget: `winget install Git.Git`
+  - Nếu không: Tải từ `https://github.com/git-for-windows/git/releases/latest`
+  
+- **uv**: 
+  - Luôn cài qua PowerShell script (không cần winget)
+  - `irm https://astral.sh/uv/install.ps1 | iex`
+
+- **Python 3.11+**: 
+  - Nếu có winget: `winget install Python.Python.3.11`
+  - Nếu không: Tải từ `https://www.python.org/ftp/python/3.11.9/python-3.11.9-amd64.exe`
 
 #### 2. Firewall Configuration
 - Tự động mở Windows Firewall cho cổng 8000 (FastAPI)
@@ -53,37 +68,63 @@ Script tích hợp với luồng Onboarding 5 bước:
 
 ### Script Structure
 ```powershell
-# 1. Check and install winget
-if (-not (Get-Command winget -ErrorAction SilentlyContinue)) {
-    # Install winget
+# 1. Check winget availability (don't install if missing)
+$hasWinget = Get-Command winget -ErrorAction SilentlyContinue
+
+# 2. Install Git
+if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
+    if ($hasWinget) {
+        Write-Host "Installing Git via winget..."
+        winget install Git.Git --silent
+    } else {
+        Write-Host "Installing Git from official installer..."
+        $gitUrl = "https://github.com/git-for-windows/git/releases/download/v2.44.0.windows.1/Git-2.44.0-64-bit.exe"
+        $gitInstaller = "$env:TEMP\git-installer.exe"
+        Invoke-WebRequest -Uri $gitUrl -OutFile $gitInstaller
+        Start-Process -FilePath $gitInstaller -Args "/VERYSILENT /NORESTART" -Wait
+        Remove-Item $gitInstaller
+    }
 }
 
-# 2. Install dependencies via winget
-winget install Git.Git
-winget install uv
+# 3. Install uv (always via PowerShell script, no winget needed)
+if (-not (Get-Command uv -ErrorAction SilentlyContinue)) {
+    Write-Host "Installing uv..."
+    irm https://astral.sh/uv/install.ps1 | iex
+}
 
-# 3. Clone/Update repository
+# 4. Clone/Update repository
 if (Test-Path "carevl") {
+    Write-Host "Updating existing repository..."
     cd carevl
     git reset --hard
     git pull
 } else {
+    Write-Host "Cloning repository..."
     git clone https://github.com/DigitalVersion/carevl.git
     cd carevl
 }
 
-# 4. Setup Python environment
+# 5. Setup Python environment
+Write-Host "Setting up Python environment..."
 uv sync
 
-# 5. Configure firewall
-New-NetFirewallRule -DisplayName "CareVL FastAPI Server" -Direction Inbound -LocalPort 8000 -Protocol TCP -Action Allow
+# 6. Configure firewall
+Write-Host "Configuring Windows Firewall..."
+$ruleName = "CareVL FastAPI Server"
+if (-not (Get-NetFirewallRule -DisplayName $ruleName -ErrorAction SilentlyContinue)) {
+    New-NetFirewallRule -DisplayName $ruleName -Direction Inbound -LocalPort 8000 -Protocol TCP -Action Allow
+}
 
-# 6. Create desktop shortcut
+# 7. Create desktop shortcut
+Write-Host "Creating desktop shortcut..."
 $WshShell = New-Object -comObject WScript.Shell
 $Shortcut = $WshShell.CreateShortcut("$Home\Desktop\CareVL.lnk")
 $Shortcut.TargetPath = "powershell.exe"
 $Shortcut.Arguments = "-File `"$PWD\scripts\start.ps1`""
+$Shortcut.WorkingDirectory = $PWD
 $Shortcut.Save()
+
+Write-Host "Setup completed successfully!"
 ```
 
 ## Rationale
@@ -99,8 +140,17 @@ $Shortcut.Save()
 ## Troubleshooting
 
 ### Lỗi "winget not found"
-- Script sẽ tự động cài winget
-- Nếu thất bại, cần cài thủ công từ Microsoft Store
+- **Giải pháp**: Script sẽ tự động skip winget và cài trực tiếp từ installer
+- Không cần lo lắng, script sẽ tự xử lý
+
+### Lỗi "Git installation failed"
+- Kiểm tra kết nối mạng
+- Thử chạy lại script
+- Nếu vẫn lỗi, cài Git thủ công từ https://git-scm.com/download/win
+
+### Lỗi "uv installation failed"
+- Kiểm tra kết nối mạng
+- Thử chạy thủ công: `irm https://astral.sh/uv/install.ps1 | iex`
 
 ### Lỗi "Execution Policy"
 - Đã được xử lý trong one-liner command
@@ -109,3 +159,15 @@ $Shortcut.Save()
 ### Lỗi Firewall
 - Cần chạy PowerShell với quyền Administrator
 - Script sẽ tự động yêu cầu elevation nếu cần
+
+## Performance
+
+### Thời gian cài đặt ước tính:
+- **Có winget sẵn**: ~3-5 phút
+- **Không có winget**: ~2-3 phút (nhanh hơn vì skip cài winget!)
+- **Đã có Git/uv**: ~1 phút (chỉ clone repo và setup)
+
+### Tại sao không cài winget?
+- Cài winget mất 5-10 phút (quá lâu)
+- Chỉ cần để cài Git, không đáng
+- Tải installer trực tiếp nhanh hơn nhiều
