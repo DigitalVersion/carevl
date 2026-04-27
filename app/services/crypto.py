@@ -36,3 +36,16 @@ def encrypt_file(input_file_path: str, output_file_path: str) -> None:
         f_out.write(ciphertext)
 
     print(f"Successfully encrypted {input_file_path} to {output_file_path}")
+
+
+def compute_file_sha256(filepath: str) -> str:
+    """
+    Computes the SHA-256 hash of a file.
+    """
+    import hashlib
+    sha256_hash = hashlib.sha256()
+    with open(filepath, "rb") as f:
+        # Read and update hash string value in blocks of 4K
+        for byte_block in iter(lambda: f.read(4096), b""):
+            sha256_hash.update(byte_block)
+    return sha256_hash.hexdigest()
