@@ -2,9 +2,10 @@ import os
 import sqlite3
 import tempfile
 import time
-from datetime import datetime, timedelta
+import json
+from datetime import datetime, timezone
 from app.core.config import settings
-from app.services.crypto import encrypt_file
+from app.services.crypto import encrypt_file, compute_file_sha256
 import logging
 
 logger = logging.getLogger(__name__)
@@ -20,10 +21,9 @@ def perform_snapshot() -> str:
         logger.error(f"Cannot create snapshot. Database not found at {db_path}")
         return ""
 
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    snapshot_filename = f"carevl_snapshot_{settings.SITE_ID}_{timestamp}.db.enc"
+    timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     snapshot_dir = os.path.dirname(db_path)
-    snapshot_path = os.path.join(snapshot_dir, snapshot_filename)
+    schema_version = "v1" # Hardcoded for now, should be dynamic if schema changes
 
     try:
         fd, temp_db_path = tempfile.mkstemp(suffix=".db")
@@ -38,8 +38,37 @@ def perform_snapshot() -> str:
         source.close()
         dest.close()
 
-        encrypt_file(temp_db_path, snapshot_path)
+        fd_enc, temp_enc_path = tempfile.mkstemp(suffix=".enc")
+        os.close(fd_enc)
+
+        # 2. Encrypt
+        encrypt_file(temp_db_path, temp_enc_path)
         os.remove(temp_db_path)
+
+        # 3. Compute SHA256 of encrypted file
+        file_hash = compute_file_sha256(temp_enc_path)
+
+        # 4. Derive snapshot_id
+        snapshot_id = file_hash[:8]
+
+        # 5. Rename file to final format
+        snapshot_filename = f"carevl_{settings.SITE_ID}_{timestamp}_{snapshot_id}_{schema_version}.db.enc"
+        snapshot_path = os.path.join(snapshot_dir, snapshot_filename)
+
+        os.rename(temp_enc_path, snapshot_path)
+
+        # Save sidecar JSON for metadata and checksum
+        sidecar_filename = f"carevl_{settings.SITE_ID}_{timestamp}_{snapshot_id}_{schema_version}.json"
+        sidecar_path = os.path.join(snapshot_dir, sidecar_filename)
+        metadata = {
+            "site_id": settings.SITE_ID,
+            "timestamp": timestamp,
+            "snapshot_id": snapshot_id,
+            "schema_version": schema_version,
+            "checksum": file_hash
+        }
+        with open(sidecar_path, 'w') as f:
+            json.dump(metadata, f)
 
         logger.info(f"Auto-snapshot created successfully: {snapshot_path}")
         return snapshot_path
@@ -48,9 +77,10 @@ def perform_snapshot() -> str:
         logger.error(f"Failed to create auto-snapshot: {str(e)}")
         return ""
 
-def cleanup_old_snapshots(days: int = 7):
+def cleanup_old_snapshots(hours: int = 24 * 7):
     """
-    Deletes encrypted snapshot files older than a specified number of days.
+    Deletes encrypted snapshot files older than a specified number of hours.
+    Always keeps the latest snapshot.
     """
     db_path = settings.DATABASE_URL.replace("sqlite:///", "")
     snapshot_dir = os.path.dirname(db_path)
@@ -59,20 +89,45 @@ def cleanup_old_snapshots(days: int = 7):
         return
 
     now = time.time()
-    cutoff_time = now - (days * 86400) # 86400 seconds in a day
+    cutoff_time = now - (hours * 3600)
     deleted_count = 0
 
+    # Collect all valid snapshots
+    snapshots = []
     for filename in os.listdir(snapshot_dir):
-        if filename.startswith(f"carevl_snapshot_{settings.SITE_ID}_") and filename.endswith(".db.enc"):
+        if filename.startswith("carevl_") and filename.endswith(".db.enc"):
             filepath = os.path.join(snapshot_dir, filename)
-            # Check file modification time
-            if os.path.getmtime(filepath) < cutoff_time:
-                try:
-                    os.remove(filepath)
-                    deleted_count += 1
-                    logger.info(f"Deleted old snapshot: {filename}")
-                except Exception as e:
-                    logger.error(f"Failed to delete old snapshot {filename}: {str(e)}")
+            try:
+                mtime = os.path.getmtime(filepath)
+                snapshots.append((mtime, filepath, filename))
+            except OSError:
+                pass # file might be locked/deleted
+
+    if not snapshots:
+        return
+
+    # Sort by modification time descending
+    snapshots.sort(key=lambda x: x[0], reverse=True)
+
+    # Keep the latest snapshot
+    latest_snapshot_path = snapshots[0][1]
+
+    for mtime, filepath, filename in snapshots:
+        if filepath == latest_snapshot_path:
+            continue
+
+        if mtime < cutoff_time:
+            try:
+                # Also try to delete sidecar json if it exists
+                sidecar_path = filepath.replace(".db.enc", ".json")
+                if os.path.exists(sidecar_path):
+                    os.remove(sidecar_path)
+
+                os.remove(filepath)
+                deleted_count += 1
+                logger.info(f"Deleted old snapshot: {filename}")
+            except Exception as e:
+                logger.error(f"Failed to delete old snapshot {filename}: {str(e)}")
 
     if deleted_count > 0:
         logger.info(f"Cleanup complete. Removed {deleted_count} old snapshots.")

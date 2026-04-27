@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 import logging
 
 from app.core.config import settings
-from app.services.crypto import encrypt_file
+from app.services.crypto import encrypt_file, compute_file_sha256
 
 logger = logging.getLogger(__name__)
 
@@ -46,9 +46,9 @@ def _run_sync_blocking_operations():
         return
 
     timestamp_obj = datetime.now(timezone.utc)
-    # Note: Use hyphens as per spec for Windows file system compatibility
-    timestamp_str = timestamp_obj.strftime("%Y-%m-%dT%H-%M-%S")
+    timestamp_str = timestamp_obj.strftime("%Y%m%dT%H%M%SZ")
     iso_timestamp_str = timestamp_obj.isoformat()
+    schema_version = "v1"
 
     try:
         # Step 1 & 2: Metadata Injection and Optimization
@@ -89,8 +89,6 @@ def _run_sync_blocking_operations():
         source.close()
         dest.close()
 
-        # Naming convention: FINAL_{SITE_ID}_{YYYY-MM-DDTHH-mm-ss}.db.enc
-        filename = f"FINAL_{settings.SITE_ID}_{timestamp_str}.db.enc"
         fd_enc, temp_enc_path = tempfile.mkstemp(suffix=".enc")
         os.close(fd_enc)
 
@@ -98,6 +96,15 @@ def _run_sync_blocking_operations():
 
         # Clean up unencrypted temp DB
         os.remove(temp_db_path)
+
+        # 3. Compute SHA256 of encrypted file
+        file_hash = compute_file_sha256(temp_enc_path)
+
+        # 4. Derive snapshot_id
+        snapshot_id = file_hash[:8]
+
+        # 5. Determine final filename
+        filename = f"carevl_{settings.SITE_ID}_{timestamp_str}_{snapshot_id}_{schema_version}.db.enc"
 
         # Step 4: GitHub Releases Transport
         _update_status("Đang tải lên GitHub...")
@@ -108,7 +115,7 @@ def _run_sync_blocking_operations():
             logger.warning("GitHub Config missing or default. Simulating upload success.")
         else:
             # We need to run the async upload task from this synchronous context
-            asyncio.run(_upload_to_github_release(temp_enc_path, filename, timestamp_str))
+            asyncio.run(_upload_to_github_release(temp_enc_path, filename, timestamp_str, expected_hash=file_hash))
 
         # Step 5: Clean up encrypted temp file
         os.remove(temp_enc_path)
@@ -119,10 +126,15 @@ def _run_sync_blocking_operations():
         logger.error(f"Sync failed: {str(e)}", exc_info=True)
         _update_status(f"Lỗi: {str(e)}", is_error=True)
 
-async def _upload_to_github_release(filepath: str, filename: str, tag_name: str):
+async def _upload_to_github_release(filepath: str, filename: str, tag_name: str, expected_hash: str):
     """
     Uploads the file to GitHub Releases using the GitHub REST API.
     """
+    # Pre-upload Validation
+    current_hash = compute_file_sha256(filepath)
+    if current_hash != expected_hash:
+        raise Exception("Pre-upload validation failed: File hash mismatch. Aborting upload.")
+
     repo = settings.GITHUB_REPO
     token = settings.GITHUB_TOKEN
 
