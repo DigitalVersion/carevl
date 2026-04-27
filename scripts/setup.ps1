@@ -214,20 +214,58 @@ function Create-Shortcut {
     param([int]$Port)
     Write-Step "Tao file start_carevl.bat va Desktop Shortcut..."
 
+    # Tạo file .bat
     $batPath = Join-Path $TargetDir "start_carevl.bat"
     $batContent = "@echo off`ncd /d `"$TargetDir`"`nuv run uvicorn app.main:app --host 0.0.0.0 --port $Port"
     Set-Content -Path $batPath -Value $batContent
+    Write-Info "Da tao file: $batPath"
 
-    $WshShell = New-Object -ComObject WScript.Shell
-    $DesktopPath = [Environment]::GetFolderPath("Desktop")
-    $Shortcut = $WshShell.CreateShortcut("$DesktopPath\CareVL Vĩnh Long.lnk")
-
-    $Shortcut.TargetPath = $batPath
-    $Shortcut.WorkingDirectory = $TargetDir
-    $Shortcut.IconLocation = "shell32.dll,273"
-    $Shortcut.Description = "Khoi dong he thong CareVL Vinh Long"
-    $Shortcut.WindowStyle = 7 # Minimized
-    $Shortcut.Save()
+    # Tạo shortcut bằng PowerShell (không dùng COM object)
+    try {
+        $WshShell = New-Object -ComObject WScript.Shell
+        $DesktopPath = [Environment]::GetFolderPath("Desktop")
+        $ShortcutPath = Join-Path $DesktopPath "CareVL Vĩnh Long.lnk"
+        
+        $Shortcut = $WshShell.CreateShortcut($ShortcutPath)
+        $Shortcut.TargetPath = $batPath
+        $Shortcut.WorkingDirectory = $TargetDir
+        $Shortcut.IconLocation = "shell32.dll,273"
+        $Shortcut.Description = "Khoi dong he thong CareVL Vinh Long"
+        $Shortcut.WindowStyle = 7 # Minimized
+        $Shortcut.Save()
+        
+        Write-Info "Da tao shortcut: $ShortcutPath"
+    }
+    catch {
+        Write-Host "Khong the tao shortcut bang COM object, dung phuong an fallback..." -ForegroundColor Yellow
+        
+        # Fallback: Tạo shortcut bằng VBScript
+        $DesktopPath = [Environment]::GetFolderPath("Desktop")
+        $ShortcutPath = Join-Path $DesktopPath "CareVL Vĩnh Long.lnk"
+        
+        $vbsScript = @"
+Set oWS = WScript.CreateObject("WScript.Shell")
+sLinkFile = "$ShortcutPath"
+Set oLink = oWS.CreateShortcut(sLinkFile)
+oLink.TargetPath = "$batPath"
+oLink.WorkingDirectory = "$TargetDir"
+oLink.IconLocation = "shell32.dll,273"
+oLink.Description = "Khoi dong he thong CareVL Vinh Long"
+oLink.WindowStyle = 7
+oLink.Save
+"@
+        
+        $vbsPath = Join-Path $env:TEMP "create_shortcut.vbs"
+        Set-Content -Path $vbsPath -Value $vbsScript
+        & cscript //nologo $vbsPath
+        Remove-Item $vbsPath -ErrorAction SilentlyContinue
+        
+        if (Test-Path $ShortcutPath) {
+            Write-Info "Da tao shortcut: $ShortcutPath"
+        } else {
+            Write-Host "CANH BAO: Khong the tao shortcut. Vui long tao shortcut thu cong cho file: $batPath" -ForegroundColor Yellow
+        }
+    }
 }
 
 function Start-Server {

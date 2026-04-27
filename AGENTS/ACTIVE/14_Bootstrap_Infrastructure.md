@@ -45,10 +45,11 @@ Set-ExecutionPolicy Bypass -Scope Process -Force; iwr -useb https://raw.githubus
 - Đặt tên rule: "CareVL FastAPI Server"
 
 #### 3. Desktop Shortcut
+- Tự động tạo file `.bat` để khởi động app
 - Tự động tạo shortcut trên Desktop
-- Tên: **"CareVL"**
-- Icon: Logo của hệ thống
-- Target: Script khởi động ứng dụng
+- Tên: **"CareVL Vĩnh Long"**
+- Icon: shell32.dll,273 (icon máy tính)
+- **Fallback mechanism**: Nếu COM object thất bại → dùng VBScript → nếu vẫn thất bại → hướng dẫn tạo thủ công
 
 #### 4. Idempotent Behavior
 Script có thể chạy nhiều lần mà không gây lỗi:
@@ -138,6 +139,13 @@ Write-Host "Setup completed successfully!"
 - [01. FastAPI Core Architecture](01_FastAPI_Core.md)
 
 ## Troubleshooting
+
+### Lỗi "Không tạo được shortcut" hoặc "error invalid class"
+- **Nguyên nhân**: COM object WScript.Shell bị chặn hoặc không khả dụng
+- **Giải pháp**: Script sẽ tự động fallback sang VBScript
+- Nếu vẫn không được, tạo shortcut thủ công:
+  1. Chuột phải vào file `start_carevl.bat` trong thư mục cài đặt
+  2. Chọn "Send to" → "Desktop (create shortcut)"
 
 ### Lỗi "winget not found"
 - **Giải pháp**: Script sẽ tự động skip winget và cài trực tiếp từ installer
