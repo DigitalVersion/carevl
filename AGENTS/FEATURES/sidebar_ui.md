@@ -1,25 +1,46 @@
 # Feature: Responsive Sidebar (FHIR Aligned)
 
-## Trạng thái (Status)
-- [x] Đã triển khai (Deployed)
-- [ ] Đang phát triển (In Progress)
-- [ ] Đã loại bỏ (Deprecated)
+## Status
+[Active - Implemented]
 
-## Mô tả Nghiệp vụ (Business Logic)
-Giao diện điều hướng chính của hệ thống với 10 mục được chuẩn hóa theo FHIR/IHE. Phân loại theo 4 Personas chính (Tiếp nhận, Bác sĩ/Lâm sàng, Nhập liệu/Lab, Trưởng trạm/Quản trị).
-Sử dụng Alpine.js để cung cấp trải nghiệm menu collapsible trên màn hình di động (Mobile Responsive), giúp tiết kiệm diện tích.
+- Deployed: co
+- In progress: khong
+- Deprecated: khong
 
-## Các Endpoints liên quan (API/UI Routes)
-*   `GET /intake` (Tiếp nhận mới)
-*   `GET /queue` (Lượt khám - Coming Soon)
-*   `GET /patient-record` (Hồ sơ bệnh nhân - Coming Soon)
-*   `GET /aggregate` (Nhập liệu tổng hợp - Coming Soon)
-*   `GET /results-update` (Cập nhật kết quả cá nhân)
-*   `GET /reports` (Báo cáo - Coming Soon)
-*   `GET /admin/backups` (Xuất dữ liệu Hub - Tích hợp Active Sync)
-*   `GET /audit` (Liên thông - Coming Soon)
-*   `GET /settings` (Cài đặt trạm - Coming Soon)
-*   `GET /about` (Giới thiệu - Coming Soon)
+## Context
+He thong co 10 nhom chuc nang. Nguoi dung thuoc 4 persona khac nhau. Can mot thanh dieu huong de tim nhanh dung viec, dung vai tro, dung route, ca tren desktop lan mobile.
 
-## Lịch sử thay đổi (Changelog)
-- **2026-04-26**: Jules - Xây dựng kiến trúc Sidebar 10 mục với Tailwind CSS & Alpine.js, thêm trang Coming Soon cho các mục chưa hỗ trợ.
+## Decision
+Dung sidebar responsive lam khung dieu huong chinh.
+
+- Gom 10 muc chuan hoa theo FHIR/IHE.
+- Nhom theo 4 persona: Tiep nhan, Lam sang, Nhap lieu, Truong tram.
+- Dung Alpine.js cho menu collapse tren mobile.
+- Muc chua xong thi tro vao trang coming soon, giu luong dieu huong on dinh.
+
+## Rationale
+Mot thanh dieu huong nhat quan giu nguoi dung khong lac. Mobile collapse giu man hinh nho van dung duoc. Sidebar nay cung la ban do route cho toan bo feature ledger.
+
+## Related Endpoints
+- `GET /intake`
+- `GET /queue`
+- `GET /patient-record`
+- `GET /aggregate`
+- `GET /results-update`
+- `GET /reports`
+- `GET /admin/backups`
+- `GET /audit`
+- `GET /settings`
+- `GET /about`
+
+## Related Documents
+- [1. Tiep nhan moi](1_tiep_nhan_moi.md)
+- [2. Luot kham](2_luot_kham.md)
+- [3. Ho so benh nhan](3_ho_so_benh_nhan.md)
+- [4. Nhap lieu (Aggregate)](4_nhap_lieu_aggregate.md)
+- [5. Cap nhat ket qua](5_cap_nhat_ket_qua.md)
+- [6. Bao cao](6_bao_cao.md)
+- [7. Xuat du lieu Hub](7_xuat_du_lieu_hub.md)
+- [8. Lien thong (Audit)](8_lien_thong_audit.md)
+- [9. Cai dat tram](9_cai_dat_tram.md)
+- [10. Gioi thieu](10_gioi_thieu.md)

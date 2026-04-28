@@ -1,19 +1,24 @@
 # SQLite Security & Snapshots
 
 ## Status
-**[Active]**
+[Active]
 
 ## Context
-Dữ liệu y tế tại các Site (Trạm) cần được lưu trữ an toàn (Offline-first) và có khả năng chịu tải khi có nhiều nhân viên y tế thao tác ghi dữ liệu cùng lúc. Khi có mạng, dữ liệu cần được đóng gói an toàn trước khi đẩy lên Hub.
+Tram can luu du lieu y te theo kieu offline-first, van ghi duoc khi nhieu nguoi thao tac, va khi co mang thi phai dong goi an toan truoc khi day ve Hub.
 
 ## Decision
-1. Sử dụng SQLite làm local database.
-2. Bắt buộc kích hoạt chế độ **WAL (Write-Ahead Logging)** thông qua SQLAlchemy connection event (`PRAGMA journal_mode=WAL`).
-3. Sử dụng `sqlite3.backup()` để tạo snapshot ra file tạm thời, giúp bao gồm cả những thay đổi chưa commit trong WAL.
-4. Mã hóa file snapshot thành `.db.enc` bằng AES-256-CBC qua thư viện `cryptography`, với khóa mã hóa từ `.env`.
-5. Tạo job tự động (qua APScheduler) backup mỗi 15 phút và xóa file cũ hơn 7 ngày.
+Dung SQLite local DB voi lop bao ve va snapshot ro rang.
+
+1. Runtime DB la SQLite.
+2. Bat buoc WAL qua SQLAlchemy connection event: `PRAGMA journal_mode=WAL`.
+3. Tao snapshot bang `sqlite3.backup()` de lay ca du lieu nam trong WAL.
+4. Ma hoa snapshot thanh `.db.enc` bang AES-256-CBC qua `cryptography`, key lay tu `.env`.
+5. Chay backup tu dong qua APScheduler moi 15 phut, xoa file cu hon 7 ngay.
 
 ## Rationale
-- **WAL Mode**: Khắc phục lỗi `database is locked` của SQLite mặc định khi có nhiều process đọc/ghi đồng thời. Việc cấu hình qua DBAPI connection đảm bảo WAL luôn bật.
-- **Snapshot Backup**: Nếu chỉ copy file `.db` chay, dữ liệu trong bộ nhớ đệm WAL sẽ bị mất. Sử dụng API Backup đảm bảo tính nhất quán của dữ liệu.
-- **AES-256**: Tiêu chuẩn mã hóa cấp doanh nghiệp, đảm bảo file snapshot nếu bị lộ trong quá trình truyền tải cũng không thể giải mã nếu không có key.
+WAL giam loi `database is locked` khi doc/ghi dong thoi. Backup API dam bao snapshot nhat quan, khong bo sot du lieu chi vi copy file `.db` tho. AES-256 giu file an toan khi van chuyen hoac luu tam.
+
+## Related Documents
+- [07. Active Sync Protocol: The Encrypted SQLite Blob](07_active_sync_protocol.md)
+- [14. Bootstrap Infrastructure: One-Liner Setup](14_Bootstrap_Infrastructure.md)
+- [17. Invite Code Authentication: Fine-grained PAT Provisioning](17_Invite_Code_Authentication.md)

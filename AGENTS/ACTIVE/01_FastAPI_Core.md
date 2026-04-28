@@ -1,15 +1,22 @@
 # FastAPI Core Architecture
 
 ## Status
-**[Active]**
+[Active]
 
 ## Context
-Dự án CareVL ban đầu được xây dựng trên nền tảng CustomTkinter cho ứng dụng Desktop. Tuy nhiên, kiến trúc này gây khó khăn trong việc phát triển giao diện responsive cho thiết bị di động (Contributor dùng điện thoại để quét mã vạch) và hạn chế khả năng mở rộng API.
+Ban dau CareVL dung CustomTkinter desktop. Cach nay vuong mobile responsive, vuong quet ma vach bang dien thoai, va vuong mo rong API.
 
 ## Decision
-Chuyển đổi toàn bộ kiến trúc Backend sang sử dụng FastAPI.
+Chuyen backend sang FastAPI.
+
+- API va HTML cung do FastAPI phuc vu.
+- Template dung Jinja2.
+- Code tach module `core`, `api`, `models`, `services`.
 
 ## Rationale
-- **Tốc độ & Hiện đại**: FastAPI cung cấp hiệu năng rất cao, hỗ trợ Async/Await tự nhiên và Pydantic cho validation.
-- **Tách biệt Frontend/Backend**: FastAPI cho phép phục vụ API và trả về HTML template (Jinja2) một cách độc lập, giúp dễ dàng tích hợp TailwindCSS và HTMX.
-- **Dễ bảo trì**: Cấu trúc thư mục dạng module (core, api, models, services) rõ ràng hơn kiến trúc monolithic cũ. Lỗi sẽ dễ khoanh vùng hơn.
+FastAPI nhanh, ro, va hop web-first hon stack cu. Async/Await san co. Pydantic giup validation. UI/Backend tach lop de ghep HTMX, Tailwind, va route API de hon. Cau truc module cung de khoanh loi va de bao tri.
+
+## Related Documents
+- [03. Web UI & HTMX Interaction](03_Web_UI_HTMX.md)
+- [04. Development Guidelines & Troubleshooting](04_Development_Guidelines.md)
+- [18. Two-App Architecture: Edge vs Hub](18_Two_App_Architecture.md)

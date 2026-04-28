@@ -1,39 +1,39 @@
-# Feature: Gateway Authentication (DEPRECATED)
+# Feature: Gateway Authentication (Deprecated)
 
-## Trạng thái (Status)
-- [ ] Đã triển khai (Deployed)
-- [ ] Đang phát triển (In Progress)
-- [x] Đã loại bỏ (Deprecated)
+## Status
+[Deprecated]
 
-**Deprecated Date**: 2026-04-28  
-**Replaced By**: [17. Invite Code Authentication](../ACTIVE/17_Invite_Code_Authentication.md)
+- Deployed: khong
+- In progress: khong
+- Deprecated: co
+- Deprecated date: 2026-04-28
+- Replaced by: [17. Invite Code Authentication](../ACTIVE/17_Invite_Code_Authentication.md)
 
-## Lý do Deprecated
+## Context
+May tram can kich hoat lan dau de co quyen ghi va dong bo. Ban thiet ke cu dung GitHub Device Flow 5 buoc. Nguoi dung cuoi thay dai, roi, va le thuoc thao tac GitHub qua nhieu.
 
-Phương thức Device Flow (5 bước) quá phức tạp cho người dùng cuối và không phù hợp với constraint "không có server backend".
+## Decision
+Khong dung Gateway Authentication nua. Chuyen sang Invite Code Authentication voi Fine-grained PAT.
 
-Đã thay thế bằng **Invite Code Authentication** sử dụng Fine-grained PAT:
-- Đơn giản hơn: 4 bước thay vì 5 bước
-- Không cần GitHub account cá nhân
-- Không cần quét QR, nhập device code
-- Chỉ cần paste invite code
+Quy trinh cu da bo:
 
-Xem chi tiết tại: [ARCHIVE/17_GitHub_Device_Flow.md](../ARCHIVE/17_GitHub_Device_Flow.md)
+1. `GET /login`: hien Device Code GitHub.
+2. `GET/POST /setup/repo`: nhap repo dich.
+3. `GET/POST /setup/permission`: cho cap quyen ghi qua QR invite.
+4. `GET/POST /setup/data`: tao DB trong hoac restore snapshot.
+5. `GET/POST /setup/pin`: dat PIN 6 so de bao ve token offline.
 
-## Mô tả Nghiệp vụ (Business Logic)
-Quy trình 5 bước để kích hoạt máy trạm (Gateway) lần đầu:
-1. Xác thực thiết bị bằng GitHub Device Flow.
-2. Cấu hình URL của Repository đích để lưu trữ dữ liệu.
-3. Kiểm tra quyền Ghi (Write) của người dùng; nếu chưa có, sinh mã QR chứa link invite cho Trưởng trạm hoặc Admin Hub quét.
-4. Lựa chọn khởi tạo Database trống hoặc Khôi phục Database Snapshot bằng Private Key của Hub.
-5. Thiết lập mã PIN 6 số để mã hóa token phục vụ quá trình sử dụng Offline.
+## Rationale
+Invite code ngan hon, it buoc hon, khong doi GitHub account ca nhan, khong can quet QR va nhap device code. Luong moi hop hon voi rang buoc "khong server backend" va doi ngu van hanh tai tram.
 
-## Các Endpoints liên quan (API/UI Routes)
-*   `GET /login`: Giao diện hiển thị mã Device Code cho GitHub.
-*   `GET/POST /setup/repo`: Nhập và cấu hình Repository đích.
-*   `GET/POST /setup/permission`: Hiển thị cảnh báo và mã QR chờ cấp quyền ghi.
-*   `GET/POST /setup/data`: Khởi tạo DB trống hoặc Restore DB snapshot.
-*   `GET/POST /setup/pin`: Cài đặt mã PIN.
+## Related Endpoints
+- `GET /login`
+- `GET/POST /setup/repo`
+- `GET/POST /setup/permission`
+- `GET/POST /setup/data`
+- `GET/POST /setup/pin`
 
-## Lịch sử thay đổi (Changelog)
-- **2026-04-27**: Jules - Khởi tạo quy trình Gateway 5 bước và các UI/Endpoint tương ứng.
+## Related Documents
+- [17. Invite Code Authentication: Fine-grained PAT Provisioning](../ACTIVE/17_Invite_Code_Authentication.md)
+- [17. GitHub Device Flow Authentication (Deprecated)](../ARCHIVE/17_GitHub_Device_Flow.md)
+- [18. Two-App Architecture: Edge vs Hub](../ACTIVE/18_Two_App_Architecture.md)

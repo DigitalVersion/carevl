@@ -1,57 +1,59 @@
-# Continuous Memory Vault — Bản đồ Kiến trúc CareVL
+# Continuous Memory Vault - Ban do Kien truc CareVL
 
-> **Quy tắc chung**: Hệ thống tài liệu này hoạt động như một bộ nhớ vĩnh cửu. Không được sửa file cũ nếu đã thay đổi thiết kế cốt lõi. Hãy tạo file mới trong `ACTIVE` và dời file cũ sang `ARCHIVE`. Tất cả tài liệu phải tuân thủ chuẩn [ADR (Architecture Decision Record)](https://adr.github.io/).
+> **Luat goc**: Day la bo nho lau dai. Doi thiet ke cot loi thi khong sua file cu. Tao file moi trong `ACTIVE`, day file cu qua `ARCHIVE`. Moi tai lieu theo chuan [ADR (Architecture Decision Record)](https://adr.github.io/).
 
-## 📋 Quy tắc viết tài liệu (BẮT BUỘC)
+## Quy tac viet tai lieu (BAT BUOC)
 
-1. **Tất cả tài liệu kỹ thuật phải ở trong thư mục `AGENTS/`**
-   - `AGENTS/ACTIVE/`: Tài liệu về kiến trúc, quyết định kỹ thuật đang áp dụng
-   - `AGENTS/FEATURES/`: Tài liệu về các tính năng nghiệp vụ
-   - `AGENTS/ARCHIVE/`: Tài liệu về kiến trúc/tính năng đã bỏ (để giải thích "tại sao không dùng")
-   - `AGENTS/ASSETS/`: **TẤT CẢ** hình ảnh, mockup, diagram, SVG
+1. **Moi tai lieu ky thuat phai nam trong `AGENTS/`**
+   - `AGENTS/ACTIVE/`: kien truc va quyet dinh dang dung
+   - `AGENTS/FEATURES/`: tai lieu tinh nang nghiep vu
+   - `AGENTS/ARCHIVE/`: tai lieu da bo, de giai thich vi sao khong dung
+   - `AGENTS/ASSETS/`: tat ca anh, mockup, diagram, SVG
 
-2. **KHÔNG được tạo file `.md` hoặc thư mục hình ảnh tùy tiện**
-   - ❌ Sai: `scripts/README.md`, `docs/guide.md`, `SETUP.md`, `images/`, `assets/`
-   - ✅ Đúng: `AGENTS/ACTIVE/16_Setup_Guide.md`, `AGENTS/ASSETS/diagram.svg`
+2. **Khong tao file `.md` hay thu muc anh lung tung**
+   - Sai: `scripts/README.md`, `docs/guide.md`, `SETUP.md`, `images/`, `assets/`
+   - Dung: `AGENTS/ACTIVE/16_Setup_Guide.md`, `AGENTS/ASSETS/diagram.svg`
 
-3. **Mọi tài liệu mới phải được link từ `AGENTS.md`**
-   - Thêm vào section `ACTIVE`, `FEATURES`, hoặc `ARCHIVE` tương ứng
-   - Đảm bảo dễ tìm và có cấu trúc rõ ràng
+3. **Moi tai lieu moi phai co link trong `AGENTS.md`**
+   - Them vao `ACTIVE`, `FEATURES`, hoac `ARCHIVE`
+   - Phai de tim, de quet
 
-4. **Format tài liệu theo chuẩn ADR**
+4. **Format theo ADR**
    - `## Status`: [Active], [Active - Implemented], [Deprecated], [Planned]
-   - `## Context`: Bối cảnh, vấn đề cần giải quyết
-   - `## Decision`: Quyết định kỹ thuật
-   - `## Rationale`: Lý do tại sao chọn giải pháp này
-   - `## Related Documents`: Link đến các tài liệu liên quan
+   - `## Context`: boi canh, van de
+   - `## Decision`: quyet dinh ky thuat
+   - `## Rationale`: vi sao chon cach nay
+   - `## Related Documents`: link lien quan
 
-5. **Khi thay đổi thiết kế cốt lõi**
-   - KHÔNG sửa file cũ
-   - Tạo file mới trong `ACTIVE` với số thứ tự tiếp theo
-   - Dời file cũ sang `ARCHIVE`
-   - Cập nhật link trong `AGENTS.md`
+5. **Doi thiet ke cot loi**
+   - Khong sua file cu
+   - Tao file moi trong `ACTIVE` voi so tiep theo
+   - Day file cu qua `ARCHIVE`
+   - Cap nhat link trong `AGENTS.md`
 
-## ⚙️ Feature Syncing Protocol (Bắt buộc)
-**Mọi thay đổi về Feature đều phải được phản ánh vào tài liệu.**
-Ở bước Finalize (trước khi gọi công cụ `submit`), Agent bắt buộc phải thực hiện quy trình sau:
-1. Dùng `git diff --name-only` để quét các thay đổi file.
-2. Tìm kiếm file `.md` tương ứng trong thư mục `AGENTS/FEATURES/` (ví dụ: `auth.md`, `sync.md`). Nếu chưa có, tạo mới.
-3. Cập nhật chi tiết nội dung: Trạng thái (Status), Các Endpoints liên quan, và Logic nghiệp vụ vừa thay đổi.
+## Feature Syncing Protocol (Bat buoc)
+**Feature doi. Doc phai doi theo.**
 
-**Đặc biệt với ảnh mockup:**
-- Nếu tạo/cập nhật ảnh trong `AGENTS/ASSETS/`, PHẢI tìm và sửa tất cả link tham chiếu trong các file `.md`
-- Dùng `git grep "tên_file_ảnh"` để tìm tất cả file cần cập nhật
-- Commit ảnh và link cùng lúc để tránh link bị vỡ
+O buoc finalize, truoc `submit`, agent phai lam:
 
----
+1. Chay `git diff --name-only` de quet file da doi.
+2. Tim file `.md` ung voi feature trong `AGENTS/FEATURES/` nhu `auth.md`, `sync.md`. Chua co thi tao.
+3. Cap nhat ro `Status`, endpoint lien quan, va logic nghiep vu vua doi.
 
-## 📚 Standard Operating Procedures (SOP) & Resources
-- [Cẩm nang Thiết kế Hình ảnh (Image Generation Bible)](AGENTS/IMAGE_GUIDE.md)
+**Neu dong vao mockup anh:**
+- Tao hoac sua anh trong `AGENTS/ASSETS/` thi phai sua moi link tham chieu trong file `.md`
+- Dung `git grep "ten_file_anh"` de tim moi noi dang tro toi
+- Commit anh va link cung luc, tranh vo link
 
 ---
 
-## 🟢 ACTIVE (Tính năng & Kiến trúc đang chạy)
-Các quyết định hiện tại của hệ thống.
+## SOP & Resources
+- [Cam nang Thiet ke Hinh anh (Image Generation Bible)](AGENTS/IMAGE_GUIDE.md)
+
+---
+
+## ACTIVE (Tinh nang & Kien truc dang chay)
+Quyet dinh dang song cua he thong.
 
 - [01. FastAPI Core Architecture](AGENTS/ACTIVE/01_FastAPI_Core.md)
 - [02. SQLite Security & Snapshots](AGENTS/ACTIVE/02_SQLite_Security.md)
@@ -74,7 +76,7 @@ Các quyết định hiện tại của hệ thống.
 
 ---
 
-## 🏥 FEATURES LEDGER (10 Chức năng Sidebar)
+## FEATURES LEDGER (10 chuc nang Sidebar)
 - [Sidebar UI Architecture](AGENTS/FEATURES/sidebar_ui.md)
 - [1. Tiếp nhận mới](AGENTS/FEATURES/1_tiep_nhan_moi.md)
 - [2. Lượt khám](AGENTS/FEATURES/2_luot_kham.md)
@@ -91,13 +93,13 @@ Các quyết định hiện tại của hệ thống.
 
 ---
 
-## 🗄️ ARCHIVE (Lịch sử & Tính năng đã thay thế)
-Các quyết định đã bị thay thế hoặc bỏ đi, được lưu lại để giải thích "tại sao không dùng cách này".
+## ARCHIVE (Lich su & Tinh nang da thay)
+Quyet dinh da bo. Giu lai de biet vi sao khong di huong cu.
 
 - [05. Legacy CustomTkinter App](AGENTS/ARCHIVE/05_Legacy_Tkinter_App.md)
 - [06. Legacy OMR Pipeline](AGENTS/ARCHIVE/06_Legacy_OMR_Pipeline.md)
-- [17. GitHub Device Flow Authentication (Deprecated)](AGENTS/ARCHIVE/17_GitHub_Device_Flow.md) - Thay thế bởi Invite Code Authentication
+- [17. GitHub Device Flow Authentication (Deprecated)](AGENTS/ARCHIVE/17_GitHub_Device_Flow.md) - thay boi Invite Code Authentication
 
 ---
 
-*Cập nhật lần cuối: 2026-04-28 00:00:00*
+*Cap nhat lan cuoi: 2026-04-28 00:00:00*

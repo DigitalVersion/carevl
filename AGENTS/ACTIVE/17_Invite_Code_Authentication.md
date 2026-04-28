@@ -1,461 +1,133 @@
 # Invite Code Authentication: Fine-grained PAT Provisioning
 
 ## Status
-**[Active - Planned]**
-
-**Last Updated**: 2026-04-28
+[Active - Planned]
 
 ## Context
+CareVL can cach xac thuc don gian cho tram:
+- khong can backend server
+- khong doi ky nang Git/GitHub/OAuth
+- chi dua vao GitHub
+- setup trong khoang 5 phut
 
-Hệ thống CareVL cần phương thức xác thực đơn giản cho trạm y tế mà:
-- Không cần server backend
-- Không cần kỹ năng kỹ thuật từ người dùng
-- Chỉ dựa vào GitHub (miễn phí)
-- Bảo mật đủ tốt cho use case y tế cộng đồng
-
-**Constraint:**
-- Không có ngân sách cho server/infrastructure
-- Người dùng cuối không biết Git, GitHub, OAuth
-- Cần setup trong 5 phút
+Rang buoc:
+- khong co ngan sach infrastructure
+- nguoi dung cuoi khong biet Git
+- van phai du an toan cho du lieu y te cong dong
 
 ## Decision
+Dung GitHub Fine-grained PAT voi Invite Code provisioning.
 
-Sử dụng **GitHub Fine-grained Personal Access Token (PAT)** với Invite Code provisioning.
+### Mo hinh cot loi
+- `1 repo = 1 may tram`, khong phai `1 user`
+- Doi may thi dung lai invite code cu, chon `Restore`, pull du lieu ve
+- Khong gan voi GitHub account ca nhan
 
-### Quan trọng: 1 Repo = 1 Máy trạm (không phải 1 user)
+Vi du:
+- `station-001` repo -> may so 1 tai mot tram
+- May hong -> cai may moi -> nhap lai invite code -> restore du lieu
 
-**Mô hình:**
-- Mỗi repo đại diện cho 1 máy tính tại trạm
-- Khi đổi máy: Dùng lại Invite Code cũ, chọn "Restore" để pull dữ liệu về
-- Không gắn với GitHub account cá nhân
+### Snapshot luu dau
+- Dung GitHub Releases
+- File ten: `FINAL_{SITE_ID}_YYYY-MM-DDTHH-mm-ss.db.enc`
+- PAT phai co `Contents: write`
+- Khong commit SQLite vao code repo
 
-**Ví dụ:**
-- `station-001` repo → Máy tính số 1 tại Trạm Y Tế Xã Tân Hòa
-- Máy hỏng, mua máy mới → Cài lại app, nhập lại Invite Code, chọn "Restore"
-- Dữ liệu tự động pull về từ GitHub
+### Hub workflow
+1. Dung script Python list releases tu nhieu repo
+2. Download `.db.enc`
+3. Giai ma bang `ENCRYPTION_KEY`
+4. Aggregate bang DuckDB, co the query truc tiep SQLite qua `sqlite_scan(...)`
+5. Tao bao cao tong hop
 
-### Snapshot lưu ở đâu?
+### Kien truc setup
+```text
+Hub Admin mot lan:
+1. Tao bot account
+2. Tao nhieu repo
+3. Tao nhieu PAT fine-grained
+4. Xuat invite code
+5. Gui code qua Zalo/Email
 
-**GitHub Releases** (giống phương án cũ, không thay đổi):
-- File snapshot: `FINAL_{SITE_ID}_YYYY-MM-DDTHH-mm-ss.db.enc`
-- Upload lên GitHub Releases của repo đó
-- Fine-grained PAT có quyền tạo Release (permission `Contents: write`)
-
-**Không commit vào code repo** vì:
-- File SQLite lớn (hàng MB), không phù hợp với Git
-- GitHub Releases là "file server" cho binary files
-- Tránh phình to Git history
-
-### DuckDB Hub Aggregation
-
-**Hub Admin workflow:**
-1. Dùng script Python để list tất cả releases từ 100 repos
-2. Download tất cả file `.db.enc` về local
-3. Decrypt bằng `ENCRYPTION_KEY`
-4. Import vào DuckDB để aggregate:
-   ```sql
-   -- DuckDB có thể query trực tiếp SQLite files
-   SELECT * FROM sqlite_scan('station-001.db', 'patients')
-   UNION ALL
-   SELECT * FROM sqlite_scan('station-002.db', 'patients')
-   ...
-   ```
-5. Tạo báo cáo tổng hợp
-
-**Lợi ích DuckDB:**
-- Query trực tiếp SQLite files (không cần import)
-- Analytical queries nhanh (OLAP)
-- Export sang Parquet, CSV cho BI tools
-
-### Kiến trúc
-
-```
-Hub Admin (1 lần)          Trạm (tự làm)
-─────────────────          ─────────────
-1. Tạo bot account         1. Nhập Invite Code
-2. Tạo 100 repos              ↓
-3. Generate 100 PATs       2. App parse code
-4. Export Invite Codes        ↓
-5. Gửi qua Zalo/Email      3. Lưu PAT vào Credential Manager
-                              ↓
-                           4. Git clone/pull với PAT
-                              ↓
-                           5. Setup PIN
-                              ↓
-                           READY
+Tram:
+1. Nhap invite code
+2. App parse code
+3. Luu PAT vao Credential Manager
+4. Git clone/pull voi PAT
+5. Setup PIN
+6. Ready
 ```
 
-## Technical Implementation
+### Technical implementation
+Hub Admin:
+1. Tao bot GitHub account
+2. Tao repo bang script nhu `scripts/hub_setup_repos.py`
+3. Tao fine-grained PAT thu cong qua GitHub UI
+4. Luu PAT vao CSV
+5. Sinh invite code bang Base64 JSON tu `station_id`, `station_name`, `repo_url`, `pat`
 
-### Hub Admin Workflow
+Tram:
+1. UI nhap invite code
+2. Backend decode Base64, parse JSON, validate key bat buoc
+3. Luu PAT vao Windows Credential Manager qua `keyring`
+4. Clone/push git voi PAT
 
-#### 1. Tạo Bot Account
-```bash
-# Tạo GitHub account thủ công
-# Username: carevl-bot
-# Email: carevl-bot@example.com
-```
+Chi tiet quan trong:
+- Fine-grained PAT khong tao qua API; phai tao thu cong
+- `Contents: write` bao gom git operations va release asset upload
+- PAT luu secure trong Windows Credential Manager
+- Git URL co the inject PAT de clone; push dung credential helper/env bien
 
-#### 2. Tạo Repositories
-```python
-# Script: scripts/hub_setup_repos.py
-import requests
+### Security analysis
+Threat chinh va giam thieu:
+- PAT lo qua Zalo/Email -> chi lo `1` repo; co the revoke ngay
+- PAT bi lay tu may tram -> gioi han anh huong `1` tram; luu trong Credential Manager
+- Bot account bi compromise -> bat `2FA`, chi Hub Admin giu, theo doi audit log
+- Man-in-the-middle -> git dung HTTPS/TLS
 
-GITHUB_TOKEN = "ghp_xxxxx"  # Bot account PAT (classic, full repo access)
-ORG_OR_USER = "carevl-bot"
-REPO_PREFIX = "station"
+Trade-off chap nhan:
+- PAT lo co the lam lo du lieu `1` tram
+- Tao PAT thu cong rat ton tay luc dau
+- Audit chi tiet khong dep nhu he thong co server
 
-headers = {
-    "Authorization": f"token {GITHUB_TOKEN}",
-    "Accept": "application/vnd.github+json"
-}
+### Tai sao khong dung cach khac
+- Khong GitHub App: can server va callback OAuth
+- Khong Device Flow: phuc tap, doi GitHub account, token expire va can refresh
+- Chon fine-grained PAT: scope theo repo, khong can server, khong expire neu dat `No expiration`, UX don gian
 
-for i in range(1, 101):
-    repo_name = f"{REPO_PREFIX}-{i:03d}"
-    data = {
-        "name": repo_name,
-        "private": True,
-        "description": f"CareVL Station {i:03d} Data Repository",
-        "auto_init": True  # Tạo với README.md
-    }
-    
-    response = requests.post(
-        f"https://api.github.com/user/repos",
-        headers=headers,
-        json=data
-    )
-    
-    if response.status_code == 201:
-        print(f"✓ Created {repo_name}")
-    else:
-        print(f"✗ Failed {repo_name}: {response.json()}")
-```
+### Checklist
+Hub Admin:
+- Tao bot account co `2FA`
+- Tao private repo
+- Tao PAT fine-grained
+- Export invite code
+- Gui code cho tram
 
-#### 3. Generate Fine-grained PATs
+Station App:
+- Co UI nhap invite code
+- Parse/validate code
+- Luu PAT vao Credential Manager
+- Clone/pull/push bang PAT
+- Ho tro `New DB` va `Restore DB`
+- Setup PIN
 
-**Không thể tạo qua API!** Fine-grained PAT phải tạo thủ công qua GitHub UI.
+Testing:
+- Test parse invite code
+- Test luu/lay PAT
+- Test clone/push
+- Test revoke PAT
+- Test PAT sai/het han
 
-**Quy trình:**
-1. Vào https://github.com/settings/personal-access-tokens/new
-2. Điền thông tin:
-   - **Token name**: `Station 001 Access`
-   - **Expiration**: `No expiration`
-   - **Repository access**: `Only select repositories` → Chọn `station-001`
-   - **Permissions**:
-     - Repository permissions:
-       - `Contents`: **Read and write** (cho git push/pull + create releases)
-       - `Metadata`: Read-only (mandatory, tự động chọn)
-3. Click `Generate token`
-4. Copy token: `github_pat_xxxxx...`
-5. Lưu vào CSV
-
-**Lưu ý:** Permission `Contents: write` bao gồm:
-- Git operations (clone, push, pull)
-- Create/update/delete releases
-- Upload release assets (snapshot files)
-
-**Script hỗ trợ (semi-automated):**
-```python
-# Script: scripts/hub_generate_pat_csv.py
-import csv
-
-# Sau khi tạo PAT thủ công, paste vào đây
-PATS = {
-    "station-001": "github_pat_11AAAA...",
-    "station-002": "github_pat_11BBBB...",
-    # ... paste 100 tokens
-}
-
-with open("invite_codes.csv", "w", newline="") as f:
-    writer = csv.writer(f)
-    writer.writerow(["station_id", "station_name", "repo_url", "pat_token"])
-    
-    for station_id, pat in PATS.items():
-        station_num = station_id.split("-")[1]
-        writer.writerow([
-            station_id,
-            f"Trạm Y Tế {station_num}",
-            f"https://github.com/carevl-bot/{station_id}.git",
-            pat
-        ])
-
-print("✓ Generated invite_codes.csv")
-```
-
-#### 4. Generate Invite Codes
-
-Invite Code = Base64 encode của JSON:
-```python
-# Script: scripts/hub_generate_invite_codes.py
-import csv
-import json
-import base64
-
-with open("invite_codes.csv", "r") as f:
-    reader = csv.DictReader(f)
-    
-    for row in reader:
-        invite_data = {
-            "station_id": row["station_id"],
-            "station_name": row["station_name"],
-            "repo_url": row["repo_url"],
-            "pat": row["pat_token"]
-        }
-        
-        # Encode to base64
-        json_str = json.dumps(invite_data)
-        invite_code = base64.b64encode(json_str.encode()).decode()
-        
-        print(f"\n=== {row['station_name']} ===")
-        print(f"Invite Code:")
-        print(invite_code)
-        print(f"\nGửi code này cho trạm qua Zalo/Email")
-        print("=" * 50)
-```
-
-**Invite Code format:**
-```
-eyJzdGF0aW9uX2lkIjogInN0YXRpb24tMDAxIiwgInN0YXRpb25fbmFtZSI6ICJUcuG6oW0gWSBU4bq/IDAwMSIsICJyZXBvX3VybCI6ICJodHRwczovL2dpdGh1Yi5jb20vY2FyZXZsLWJvdC9zdGF0aW9uLTAwMS5naXQiLCAicGF0IjogImdpdGh1Yl9wYXRfMTFBQUFBLi4uIn0=
-```
-
-### Station Setup Workflow
-
-#### 1. Nhập Invite Code (UI)
-
-```python
-# app/api/auth_routes.py
-from fastapi import APIRouter, Form
-import base64
-import json
-
-router = APIRouter()
-
-@router.post("/setup/invite-code")
-async def setup_invite_code(invite_code: str = Form(...)):
-    try:
-        # Decode base64
-        json_str = base64.b64decode(invite_code).decode()
-        data = json.loads(json_str)
-        
-        # Validate
-        required_keys = ["station_id", "station_name", "repo_url", "pat"]
-        if not all(k in data for k in required_keys):
-            return {"error": "Invalid invite code format"}
-        
-        # Lưu vào session
-        session["invite_data"] = data
-        
-        return {
-            "success": True,
-            "station_name": data["station_name"],
-            "station_id": data["station_id"]
-        }
-    except Exception as e:
-        return {"error": f"Invalid invite code: {str(e)}"}
-```
-
-#### 2. Lưu PAT vào Secure Storage
-
-```python
-# app/services/credential_manager.py
-import keyring
-
-SERVICE_NAME = "CareVL"
-
-def store_pat(station_id: str, pat: str):
-    """Lưu PAT vào Windows Credential Manager"""
-    keyring.set_password(SERVICE_NAME, f"{station_id}_pat", pat)
-
-def get_pat(station_id: str) -> str:
-    """Lấy PAT từ Windows Credential Manager"""
-    return keyring.get_password(SERVICE_NAME, f"{station_id}_pat")
-
-def delete_pat(station_id: str):
-    """Xóa PAT (khi revoke)"""
-    keyring.delete_password(SERVICE_NAME, f"{station_id}_pat")
-```
-
-#### 3. Git Operations với PAT
-
-```python
-# app/services/github_sync.py
-import subprocess
-from app.services.credential_manager import get_pat
-
-def git_clone_with_pat(repo_url: str, station_id: str, target_dir: str):
-    """Clone repo sử dụng PAT"""
-    pat = get_pat(station_id)
-    
-    # Inject PAT vào URL
-    # https://github.com/user/repo.git
-    # → https://oauth2:TOKEN@github.com/user/repo.git
-    auth_url = repo_url.replace(
-        "https://github.com/",
-        f"https://oauth2:{pat}@github.com/"
-    )
-    
-    result = subprocess.run(
-        ["git", "clone", auth_url, target_dir],
-        capture_output=True,
-        text=True
-    )
-    
-    if result.returncode != 0:
-        raise Exception(f"Git clone failed: {result.stderr}")
-    
-    return True
-
-def git_push_with_pat(station_id: str, repo_dir: str):
-    """Push changes sử dụng PAT"""
-    pat = get_pat(station_id)
-    
-    # Set credential helper
-    subprocess.run(
-        ["git", "config", "credential.helper", "store"],
-        cwd=repo_dir
-    )
-    
-    # Push (Git sẽ dùng PAT từ credential helper)
-    result = subprocess.run(
-        ["git", "push", "origin", "main"],
-        cwd=repo_dir,
-        capture_output=True,
-        text=True,
-        env={"GIT_ASKPASS": "echo", "GIT_USERNAME": "oauth2", "GIT_PASSWORD": pat}
-    )
-    
-    if result.returncode != 0:
-        raise Exception(f"Git push failed: {result.stderr}")
-    
-    return True
-```
-
-## Security Analysis
-
-### Threat Model
-
-| Threat | Impact | Mitigation |
-|--------|--------|------------|
-| PAT lộ qua Zalo/Email | Attacker có thể đọc/ghi repo của 1 trạm | - Mỗi PAT chỉ scope 1 repo<br>- Gửi qua Zalo riêng tư<br>- Xóa tin nhắn sau khi setup<br>- Hub có thể revoke PAT ngay |
-| PAT bị đánh cắp từ máy trạm | Attacker clone được dữ liệu 1 trạm | - PAT lưu trong Windows Credential Manager (encrypted)<br>- Cần physical access hoặc malware<br>- Thiệt hại giới hạn ở 1 trạm |
-| Bot account bị compromise | Attacker có thể tạo/xóa PAT | - Bot account dùng 2FA<br>- Chỉ Hub Admin có password<br>- Monitor GitHub audit log |
-| Man-in-the-middle | Attacker chặn PAT khi git push/pull | - Git dùng HTTPS (TLS encrypted)<br>- PAT không bao giờ gửi plaintext |
-
-### Trade-offs Chấp Nhận
-
-✅ **Ưu điểm:**
-- Zero infrastructure cost
-- Setup trong 5 phút
-- Không cần kỹ năng kỹ thuật
-- PAT không expire (no maintenance)
-
-⚠️ **Nhược điểm:**
-- PAT lộ → 1 trạm bị compromise (chấp nhận được)
-- Phải tạo PAT thủ công (100 lần, 1 lần duy nhất)
-- Không có audit log chi tiết (chỉ có GitHub audit)
+Migration:
+- Device Flow da dua vao archive
+- Ly do doi: PAT don gian hon, it buoc hon, khong doi account ca nhan, hop rang buoc khong co server
 
 ## Rationale
-
-### Tại sao không dùng GitHub App?
-- ❌ Cần server để handle OAuth callback
-- ❌ Phức tạp hơn cho người dùng (install app, authorize)
-- ❌ Cần maintain app credentials
-
-### Tại sao không dùng Device Flow?
-- ❌ Cần user có GitHub account
-- ❌ Phức tạp: Quét QR → Nhập code → Accept invite
-- ❌ Token expire sau 8 giờ, cần refresh logic
-
-### Tại sao Fine-grained PAT?
-- ✅ Scope per repository (bảo mật tốt hơn classic PAT)
-- ✅ Không cần server
-- ✅ Không expire (set "no expiration")
-- ✅ Miễn phí 100%
-- ✅ UX đơn giản: Copy-paste code
-
-## Implementation Checklist
-
-### Hub Admin (One-time setup)
-- [ ] Tạo GitHub bot account với 2FA
-- [ ] Tạo 100 private repositories
-- [ ] Generate 100 Fine-grained PATs (thủ công qua UI)
-- [ ] Export invite codes (script)
-- [ ] Gửi invite codes cho trạm qua Zalo/Email
-
-### Station App (Development)
-- [ ] UI: Input field cho Invite Code
-- [ ] Backend: Parse và validate invite code
-- [ ] Credential Manager: Lưu PAT vào Windows Credential Manager
-- [ ] Git Service: Clone/pull/push với PAT authentication
-- [ ] Setup flow: New DB / Restore DB
-- [ ] PIN setup: Encrypt local token với PIN
-
-### Testing
-- [ ] Test invite code parsing
-- [ ] Test PAT storage/retrieval
-- [ ] Test git clone với PAT
-- [ ] Test git push với PAT
-- [ ] Test revoke PAT (Hub side)
-- [ ] Test invalid/expired PAT handling
+Fine-grained PAT la cach re, de, va vua du an toan trong bai toan nay. Moi tram chi giu quyen tren repo cua no. Hub van tong hop duoc qua snapshot va DuckDB ma khong can backend rieng.
 
 ## Related Documents
-- [01. FastAPI Core Architecture](01_FastAPI_Core.md)
 - [02. SQLite Security & Snapshots](02_SQLite_Security.md)
-- [07. Active Sync Protocol](07_active_sync_protocol.md)
-- [15. Hub Aggregation: DuckDB Analytics Pipeline](15_Hub_Aggregation.md)
-
-## Hub Aggregation với DuckDB
-
-**Workflow:**
-1. Hub Admin chạy script để download snapshots từ 100 repos
-2. Decrypt tất cả file `.db.enc` → `.db`
-3. DuckDB query trực tiếp:
-   ```python
-   import duckdb
-   
-   con = duckdb.connect()
-   
-   # Query across all station databases
-   result = con.execute("""
-       SELECT 
-           site_id,
-           COUNT(*) as total_patients,
-           COUNT(DISTINCT encounter_id) as total_encounters
-       FROM (
-           SELECT * FROM sqlite_scan('station-001.db', 'patients')
-           UNION ALL
-           SELECT * FROM sqlite_scan('station-002.db', 'patients')
-           -- ... repeat for 100 stations
-       )
-       GROUP BY site_id
-   """).fetchall()
-   ```
-
-4. Export kết quả:
-   ```python
-   # Export to Parquet for BI tools
-   con.execute("""
-       COPY (SELECT * FROM aggregated_data)
-       TO 'hub_report.parquet' (FORMAT PARQUET)
-   """)
-   ```
-
-**Lợi ích:**
-- Không cần import vào database trung tâm
-- Query trực tiếp từ SQLite files
-- Nhanh (DuckDB tối ưu cho analytical queries)
-- Dễ scale (thêm trạm chỉ cần thêm 1 dòng UNION ALL)
-
-Chi tiết xem: [15. Hub Aggregation](15_Hub_Aggregation.md)
-
-## Migration from Device Flow
-
-Tài liệu cũ về Device Flow đã được di chuyển vào ARCHIVE:
-- [ARCHIVE: GitHub Device Flow Authentication](../ARCHIVE/17_GitHub_Device_Flow.md)
-
-**Lý do thay đổi:**
-- Device Flow phức tạp hơn cho người dùng (3 bước: QR → Code → Accept invite)
-- Cần user có GitHub account cá nhân
-- Token expire và cần refresh logic
-- Fine-grained PAT đơn giản hơn (1 bước: Paste code) và phù hợp hơn với constraint "không có server"
-
+- [07. Active Sync Protocol: The Encrypted SQLite Blob](07_active_sync_protocol.md)
+- [14. Bootstrap Infrastructure: One-Liner Setup](14_Bootstrap_Infrastructure.md)
+- [18. Two-App Architecture: Edge vs Hub](18_Two_App_Architecture.md)
+- [../ARCHIVE/17_GitHub_Device_Flow.md](../ARCHIVE/17_GitHub_Device_Flow.md)

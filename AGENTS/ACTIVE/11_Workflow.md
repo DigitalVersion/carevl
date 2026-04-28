@@ -1,33 +1,41 @@
 # CareVL Workflow
 
-## Quy ước nhánh
+## Status
+[Active]
 
-- `main`: nhánh ổn định để sử dụng thật.
-- `canary`: nhánh phát triển hằng ngày.
+## Context
+Can luong branch ro de phat trien hang ngay, hotfix, va dua code on dinh ra ban dung that ma khong lam rot `main`.
 
-## Cách làm việc
+## Decision
+Quy uoc nhanh:
+- `main`: nhanh on dinh, dung that
+- `canary`: nhanh phat trien hang ngay
 
-1. Làm tính năng mới, refactor, sửa lỗi thường ngày trên `canary`.
-2. Test nhanh trước khi gộp:
+Cach lam viec:
+1. Feature moi, refactor, va bugfix thuong ngay lam tren `canary`
+2. Test nhanh truoc khi gop:
    - `uv run python -c "from modules import crud; print('OK')"`
    - `uv run python -c "from modules import record_store; print(record_store.get_storage_path())"`
    - `uv run python main.py`
-3. Khi `canary` ổn, merge vào `main`.
-4. Nếu có hotfix làm trực tiếp trên `main`, phải merge ngược lại `canary`.
+3. `canary` on thi merge vao `main`
+4. Neu hotfix lam truc tiep tren `main`, phai merge nguoc lai `canary`
 
-## Lệnh gộp chuẩn
-
-Chạy:
-
+Lenh gop chuan:
 ```bat
 dev-merge-canary-to-main.bat
 ```
 
-Script sẽ:
-
-- kiểm tra working tree phải sạch
+Script nay se:
+- kiem tra working tree sach
 - fetch `origin`
-- cập nhật `canary`
-- fast-forward `main` từ `canary`
+- cap nhat `canary`
+- fast-forward `main` tu `canary`
 - push `main`
-- quay lại `canary`
+- quay lai `canary`
+
+## Rationale
+Hai nhanh giu doi van toc va do an toan can bang. `canary` cho phep chay nhanh. `main` giu mat bang on dinh cho ban dung that. Fast-forward va script hoa giam loi merge tay.
+
+## Related Documents
+- [04. Development Guidelines & Troubleshooting](04_Development_Guidelines.md)
+- [16. Testing Guidelines](16_Testing_Guidelines.md)

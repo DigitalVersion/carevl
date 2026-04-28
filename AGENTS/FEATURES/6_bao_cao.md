@@ -1,18 +1,38 @@
-# Feature: 6. Báo cáo
+# Feature: 6. Bao cao
 
-## Trạng thái
-- [ ] Giao diện (UI)
-- [ ] Tích hợp Backend
-- [ ] Sẵn sàng sử dụng
+## Status
+[Planned]
 
-## Logic nghiệp vụ
-- Xem và xuất các biểu đồ, số liệu thống kê tổng quan của trạm.
+- UI: chua xong
+- Backend: chua xong
+- Van hanh: chua mo
+
+## Context
+Truong tram can doc nhanh tinh hinh van hanh, so lieu kham, va cac chi so tong hop. Bao cao phai nhin ra duoc xu huong, khong chi la bang so khan.
+
+## Decision
+Dung man hinh `GET /reports` lam dashboard bao cao.
+
+- Tong hop du lieu tu `Encounter`, `Observation`, `MeasureReport`.
+- Hien bieu do va KPI chinh.
+- Ho tro xuat thong tin de doi chieu va nop bao cao.
+
+## Rationale
+Bao cao tap trung giup quyet dinh nhanh. Doc tai cho duoc, xuat di duoc. Kien truc nay cung hop voi luong tong hop DuckDB o Hub.
+
+## Related Endpoints
+- `GET /reports`
 
 ## FHIR/IHE Mapping
-- **Resources:** Tổng hợp từ nhiều nguồn (`Encounter`, `Observation`, `MeasureReport`).
+- Resources: tong hop tu `Encounter`, `Observation`, `MeasureReport`
 
 ## Persona Impact
-- **Persona D (Trưởng trạm):** Tương tác chính.
+- Persona D (Truong tram): dung chinh
 
-## Danh sách ảnh Mockup
-- `06_reports_dashboard.png`: Màn hình Dashboard Báo cáo thống kê.
+## Mockup Assets
+- `06_reports_dashboard.png`: dashboard bao cao thong ke
+
+## Related Documents
+- [Sidebar UI Architecture](sidebar_ui.md)
+- [4. Nhap lieu (Aggregate)](4_nhap_lieu_aggregate.md)
+- [15. Hub Aggregation: DuckDB Analytics Pipeline](../ACTIVE/15_Hub_Aggregation.md)

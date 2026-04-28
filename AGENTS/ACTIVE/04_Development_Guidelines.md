@@ -1,19 +1,29 @@
 # Development Guidelines & Troubleshooting
 
 ## Status
-**[Active]**
+[Active]
 
 ## Context
-CareVL là dự án do AI và con người phối hợp phát triển. Cần có các nguyên tắc cứng để đảm bảo mã nguồn không bị hỏng hóc trong các tác vụ bảo trì.
+CareVL do nguoi va AI cung lam. Khong co luat cung thi de vo moi truong, lech dependency, va phat sinh loi kho lan.
 
-## Decision / Rules
-1. **Lệnh Shell**: Dùng `workdir` thay vì `cd`. Không dùng `&&` trong PowerShell (dùng `; if ($?)`).
-2. **Môi trường Python**: Dùng `uv run python` thay vì `python` trần để đảm bảo cô lập môi trường.
-3. **Thêm Dependency**: Cập nhật qua `uv add <package>` hoặc `pyproject.toml`, sau đó chạy `uv sync`.
-4. **Bảo mật**: Các biến cấu hình nhạy cảm (`GITHUB_TOKEN`, `ENCRYPTION_KEY`) đặt trong `.env`. Không bao giờ commit file `.env`.
-5. **Encoding**: Tất cả file text bắt buộc dùng UTF-8.
+## Decision
+Lam theo cac luat sau:
+
+1. Shell: dung `workdir`, khong `cd`; tren PowerShell khong dung `&&`, dung `; if ($?)`.
+2. Python: uu tien `uv run python`, khong goi `python` tran.
+3. Dependency: them bang `uv add <package>` hoac sua `pyproject.toml`, roi `uv sync`.
+4. Secret: `GITHUB_TOKEN`, `ENCRYPTION_KEY` va bien nhay cam nam trong `.env`; khong commit `.env`.
+5. Encoding: moi file text dung UTF-8.
+
+## Rationale
+Luat nay giu moi truong lap lai duoc, de debug, va giam loi do thao tac tay. `uv` giu Python env sach. Secret tach rieng tranh ro ri. UTF-8 tranh loi font va Unicode.
 
 ## Troubleshooting
-- **Lỗi `database is locked`**: Đảm bảo WAL mode được kích hoạt trong `app/core/database.py`.
-- **Lỗi `Directory 'app/static' does not exist` khi start FastAPI**: Git không track thư mục rỗng. Đảm bảo file `.gitkeep` luôn tồn tại trong `app/static/`.
-- **Lỗi import module**: Kiểm tra `PYTHONPATH` hoặc khởi chạy bằng lệnh `uv run uvicorn app.main:app`.
+- `database is locked`: kiem tra WAL trong `app/core/database.py`.
+- `Directory 'app/static' does not exist`: dam bao `app/static/.gitkeep` con ton tai.
+- Loi import module: kiem tra `PYTHONPATH` hoac chay `uv run uvicorn app.main:app`.
+
+## Related Documents
+- [02. SQLite Security & Snapshots](02_SQLite_Security.md)
+- [14. Bootstrap Infrastructure: One-Liner Setup](14_Bootstrap_Infrastructure.md)
+- [16. Testing Guidelines](16_Testing_Guidelines.md)

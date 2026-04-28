@@ -1,23 +1,42 @@
-# Feature: 1. Tiếp nhận mới
+# Feature: 1. Tiep nhan moi
 
-## Trạng thái
-- [x] Giao diện (UI)
-- [ ] Tích hợp Backend
-- [ ] Sẵn sàng sử dụng
+## Status
+[Active]
 
-## Logic nghiệp vụ
-- Tiếp nhận bệnh nhân tại quầy.
-- Quét/nhập số CCCD để định danh.
-- Quét mã vạch (Sticker ID) trên tem để phát cho bệnh nhân và đưa vào danh sách chờ.
+- UI: xong
+- Backend: chua xong
+- Van hanh: chua mo
+
+## Context
+Quay tiep nhan can nhan benh nhan nhanh, dung nguoi, dung luot. He thong can gan CCCD voi `Sticker ID` ngay dau luong de bac si va khau nhap lieu theo tiep khong lac ca.
+
+## Decision
+Dung man hinh `GET /intake` cho nhan vien quay.
+
+- Quet hoac nhap so CCCD de dinh danh.
+- Dung CCCD tao `UUIDv5` cho `Patient`.
+- Quet `Sticker ID` tren tem de tao lien ket xuyen suot.
+- Tao `Encounter` ban dau va day benh nhan vao danh sach cho.
+
+## Rationale
+Mot diem nhap. It sai tay. `Sticker ID` di cung benh nhan tu luc vao den luc co ket qua. Chuoi dinh danh nay giu dong nhat cho UI, FHIR, va lien ket ket qua sau cung.
+
+## Related Endpoints
+- `GET /intake`
 
 ## FHIR/IHE Mapping
-- **Resources:** `Patient`, `Encounter`.
-- **Mapping:** CCCD được dùng để tạo `UUIDv5`. `Sticker ID` đóng vai trò là định danh IHE PIXm (cross-reference) để liên kết kết quả sau này.
+- Resources: `Patient`, `Encounter`
+- Mapping: CCCD -> `UUIDv5`; `Sticker ID` lam dinh danh PIXm de noi du lieu ve sau
 
 ## Persona Impact
-- **Persona A (Tiếp nhận):** Tương tác chính, thực hiện cấp phát tem.
-- **Persona B (Lâm sàng):** Bệnh nhân sau khi tiếp nhận sẽ xuất hiện trong danh sách hàng đợi của Bác sĩ.
-- **Persona C (Nhập liệu) & D (Trưởng trạm):** Không tham gia trực tiếp.
+- Persona A (Tiep nhan): dung chinh
+- Persona B (Lam sang): nhan benh nhan trong hang cho
+- Persona C, D: khong thao tac truc tiep
 
-## Danh sách ảnh Mockup
-- `01_intake_screen.png`: Màn hình quét CCCD và mã vạch (Chụp bằng Playwright trên Windows).
+## Mockup Assets
+- `01_intake_screen.png`: man hinh quet CCCD va ma vach
+
+## Related Documents
+- [Sidebar UI Architecture](sidebar_ui.md)
+- [12. UI/UX Data Flow: Intake to Delayed Results](../ACTIVE/12_ui_ux_flow.md)
+- [18. Two-App Architecture: Edge vs Hub](../ACTIVE/18_Two_App_Architecture.md)

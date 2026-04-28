@@ -1,243 +1,87 @@
-# Đặc Tả Schema CareVL Phase 2
+# Dac Ta Schema CareVL Phase 2
 
-## 1. Mục tiêu
+## Status
+[Active]
 
-Phase 2 chuyển CareVL từ mô hình dữ liệu phẳng sang mô hình dữ liệu y khoa **FHIR-aligned** chạy trên **SQLite**.
+## Context
+Phase 2 dua CareVL tu du lieu phang sang mo hinh y khoa FHIR-aligned tren SQLite. Muc tieu la van hanh nhe tai tram, tach thuc the ro rang, va giu duong ra FHIR, DuckDB, va tang phan tich Hub.
 
-Mục tiêu chính:
+Khong nam trong phase nay:
+- Khong dung full FHIR JSON lam runtime chinh
+- Khong nhung DuckDB vao app Edge
+- Khong doi stack UI trong file nay
 
-- vận hành nhanh, nhẹ, offline-first tại trạm
-- tách dữ liệu theo các thực thể y khoa rõ ràng
-- giữ được đường xuất sang FHIR, DuckDB và các tầng phân tích ở Hub
-- dùng UUID làm khóa chính nội bộ cho các thực thể
+## Decision
+Schema moi theo cac quy tac sau:
 
-Không nằm trong phase này:
+1. SQLite la runtime store tai Edge.
+2. FHIR la mo hinh tham chieu, khong map JSON 1:1.
+3. UUID la khoa chinh noi bo.
+4. CCCD, VNeID, BHYT la business identifier, khong lam primary key.
+5. Moi luot kham la `encounter`.
+6. Chi so do va xet nghiem la `observation`.
+7. Ket luan benh ly la `condition`.
+8. Form dong luu trong `questionnaire_response`.
+9. Mot so bang giu `raw_json` de migrate va truy vet.
+10. Moi ban ghi nghiep vu gan duoc voi `station_id` va `author`.
 
-- lưu trữ toàn bộ tài nguyên FHIR JSON làm runtime chính
-- nhúng DuckDB vào app Edge
-- đổi stack UI sang web
-
----
-
-## 2. Nguyên tắc thiết kế
-
-1. SQLite là runtime store tại Edge.
-2. FHIR là mô hình tham chiếu, không phải khuôn JSON 1:1.
-3. UUID là khóa chính cho các bảng nghiệp vụ.
-4. CCCD, VNeID, BHYT là business identifier, không dùng làm primary key.
-5. Mỗi lượt khám là một `encounter`.
-6. Chỉ số đo đạc và xét nghiệm là `observation`.
-7. Kết luận bệnh lý là `condition`.
-8. Biểu mẫu động được lưu dưới dạng `questionnaire_response`.
-9. Một số bảng giữ `raw_json` để hỗ trợ migrate và truy vết.
-10. Mọi bản ghi nghiệp vụ phải gắn được với `station_id` và `author`.
-
----
-
-## 3. Các bảng chính
-
-### Bảng lõi
-
+Bang loi:
 - `patients`
 - `encounters`
 - `observations`
 - `conditions`
 - `questionnaire_responses`
 
-### Bảng phụ bắt buộc
-
+Bang phu bat buoc:
 - `patient_identifiers`
 - `encounter_participants`
 - `questionnaires`
 - `audit_events`
 
-### Bảng phụ mở rộng
-
+Bang phu mo rong:
 - `code_map_local`
 - `attachments`
 
----
+Vai tro bang:
+- `patients`: thong tin co ban nguoi benh
+- `patient_identifiers`: CCCD, VNeID, BHYT, ma noi bo
+- `encounters`: moi dong la mot luot kham
+- `encounter_participants`: bac si, dieu duong, nguoi nhap, nguoi duyet
+- `observations`: sinh hieu, can lam sang, xet nghiem
+- `conditions`: tien su, chan doan, ket luan
+- `questionnaires`: version hoa `template_form.json`
+- `questionnaire_responses`: giu cau tra loi day du theo form
+- `audit_events`: truy vet tao/sua/xoa, migrate, sync
 
-## 4. Vai trò của từng bảng
+Mapping tong quat:
+- `record.id` -> `encounters.id`
+- `record.package_id` -> `encounters.package_id`
+- `record.author` -> `encounters.author`
+- `record.station_id` -> `encounters.station_id`
+- `record.commune_code` -> `encounters.commune_code`
+- `record.synced` -> `encounters.sync_state`
+- `record.data` -> tach vao `patients`, `observations`, `conditions`, `questionnaire_responses`
 
-### `patients`
+Field demographics -> `patients`
+Field dinh danh -> `patient_identifiers`
+Field clinical/lab -> `observations`
+Field history/conclusion -> `conditions`, `encounters`, hoac `encounter_participants`
 
-Lưu thông tin người được quản lý sức khỏe:
+Rule code:
+- Cho phep `code_system = 'local'`
+- Khong de trong `code`
+- Luc nao cung co `code_display`
+- He ma co the dung dan: `local`, `loinc`, `snomed`, `icd10`
 
-- họ tên
-- ngày sinh
-- giới tính
-- địa chỉ
-- nhóm đối tượng
-- trạm quản lý
+Rule hop nhat benh nhan:
+1. CCCD trung
+2. VNeID trung
+3. BHYT trung
+4. `full_name + birth_date + gender_code` trung
 
-### `patient_identifiers`
+Khong hop nhat chi bang ten. Neu mo ho, tao patient moi va ghi `audit_events`.
 
-Tách riêng các định danh nghiệp vụ:
-
-- CCCD
-- VNeID
-- BHYT
-- mã hồ sơ nội bộ nếu có
-
-### `encounters`
-
-Mỗi dòng là một lượt khám:
-
-- ngày khám
-- gói khám
-- trạm thực hiện
-- người nhập
-- trạng thái đồng bộ
-- phân loại sức khỏe
-
-### `encounter_participants`
-
-Lưu người tham gia vào một lượt khám:
-
-- bác sĩ
-- điều dưỡng
-- người nhập liệu
-- người duyệt
-
-### `observations`
-
-Lưu chỉ số đo đạc và xét nghiệm, ví dụ:
-
-- huyết áp
-- nhịp tim
-- cân nặng
-- chiều cao
-- BMI
-- đường huyết
-- cholesterol
-
-### `conditions`
-
-Lưu tiền sử, chẩn đoán hoặc kết luận bệnh lý:
-
-- tiền sử bệnh
-- bệnh nghề nghiệp
-- kết luận khám
-
-### `questionnaires`
-
-Chuẩn hóa `template_form.json` thành các questionnaire có version.
-
-### `questionnaire_responses`
-
-Lưu câu trả lời đầy đủ theo cấu trúc form động để không mất ngữ cảnh UI.
-
-### `audit_events`
-
-Dùng cho:
-
-- truy vết tạo/sửa/xóa
-- ghi nhận migrate
-- ghi nhận sync
-
----
-
-## 5. Mapping từ dữ liệu hiện tại
-
-Nguồn dữ liệu cũ thường có:
-
-- `id`
-- `created_at`
-- `updated_at`
-- `author`
-- `station_id`
-- `commune_code`
-- `synced`
-- `package_id`
-- `data`
-
-Mapping tổng quát:
-
-- `record.id` → `encounters.id`
-- `record.package_id` → `encounters.package_id`
-- `record.author` → `encounters.author`
-- `record.station_id` → `encounters.station_id`
-- `record.commune_code` → `encounters.commune_code`
-- `record.synced` → `encounters.sync_state`
-- `record.data` → tách vào `patients`, `observations`, `conditions`, `questionnaire_responses`
-
----
-
-## 6. Mapping theo nhóm field
-
-### Demographics
-
-- `ho_ten` → `patients.full_name`
-- `ngay_sinh` → `patients.birth_date`
-- `gioi_tinh` → `patients.gender_code`, `patients.gender_text`
-- `dia_chi` → `patients.address_line`
-- `ma_dinh_danh`, `cccd`, `so_cccd`, `so_dinh_danh`, `vned`, `ma_vned`, `id_vned` → `patient_identifiers`
-
-### Clinical và laboratory → `observations`
-
-Các field như:
-
-- `huyet_ap_tam_thu`
-- `huyet_ap_tam_truong`
-- `nhip_tim`
-- `mach`
-- `can_nang`
-- `chieu_cao`
-- `bmi`
-- `duong_huyet_doi`
-- `cholesterol`
-- `nuoc_tieu`
-- `thi_luc_p`
-- `thi_luc_t`
-
-### Conclusion và history → `conditions` hoặc `encounters`
-
-- `tien_su_benh` → `conditions`
-- `benh_nghe_nghiep` → `conditions`
-- `ket_luan` → `conditions` hoặc `encounters.summary_text`
-- `phan_loai_sk` → `encounters.classification_display`
-- `bac_si` → `encounter_participants`
-
----
-
-## 7. Mã chuẩn và local code
-
-Trong phase 2:
-
-- cho phép dùng `code_system = 'local'`
-- nhưng không được để trống `code`
-- luôn phải có `code_display`
-
-Các hệ mã có thể dùng dần:
-
-- `local`
-- `loinc`
-- `snomed`
-- `icd10`
-
----
-
-## 8. Quy tắc hợp nhất bệnh nhân
-
-Ưu tiên hợp nhất theo thứ tự:
-
-1. CCCD trùng
-2. VNeID trùng
-3. BHYT trùng
-4. `full_name + birth_date + gender_code` trùng
-
-Không hợp nhất bệnh nhân chỉ bằng tên.
-
-Nếu mơ hồ:
-
-- tạo patient mới
-- ghi nhận sự kiện cần review trong `audit_events`
-
----
-
-## 9. Index tối thiểu
-
+Index toi thieu:
 - `patients(full_name)`
 - `patients(birth_date)`
 - `patient_identifiers(value)`
@@ -250,50 +94,36 @@ Nếu mơ hồ:
 - `conditions(patient_id)`
 - `questionnaire_responses(encounter_id)`
 
----
+Thu tu migrate:
+1. Tao `questionnaires` tu `config/template_form.json`
+2. Doc tung record cu
+3. Tim hoac tao `patient`
+4. Tao `encounter`
+5. Tao `encounter_participants`
+6. Tao `questionnaire_response`
+7. Tach do dac thanh `observations`
+8. Tach tien su va ket luan thanh `conditions`
+9. Ghi `audit_event` voi action `migrate`
 
-## 10. Thứ tự migrate đề xuất
+Sau phase 2:
+- Edge doc/ghi truc tiep SQLite; UI van la form dong
+- Hub doc snapshot SQLite, aggregate, roi nap DuckDB
 
-1. Tạo `questionnaires` từ `config/template_form.json`
-2. Đọc từng record cũ
-3. Tìm hoặc tạo `patient`
-4. Tạo `encounter`
-5. Tạo `encounter_participants`
-6. Tạo `questionnaire_response`
-7. Tách dữ liệu đo đạc thành `observations`
-8. Tách tiền sử và kết luận thành `conditions`
-9. Ghi `audit_event` với action `migrate`
+Quyet dinh chot:
+1. Runtime chinh khong dung JSON phang nua
+2. `questionnaire_responses.response_json` van giu de bao toan ngu canh form
+3. `observations` va `conditions` la nguon query y khoa chinh
+4. `encounters` la hat nhan cua luot kham
+5. `patients` va `patient_identifiers` la lop dinh danh chinh
+6. DuckDB thuoc Hub, khong nam trong Edge
 
----
+## Rationale
+Schema nay giu UI Edge van nhe, nhung du lieu ben duoi sach hon, de query hon, va de day sang Hub de tong hop. Tach bang theo y nghia y khoa giup bao cao, audit, migrate, va lien thong sau nay de di dung huong FHIR.
 
-## 11. Mô hình vận hành sau phase 2
-
-### Ở Edge
-
-- app đọc/ghi trực tiếp vào SQLite
-- UI vẫn dùng form động như cũ
-
-### Ở Hub
-
-- đọc snapshot SQLite từ các branch
-- aggregate dữ liệu
-- nạp vào DuckDB để thống kê và dashboard
-
----
-
-## 12. Quyết định chốt
-
-1. Runtime chính không còn dùng JSON phẳng.
-2. `questionnaire_responses.response_json` vẫn được giữ để bảo toàn ngữ cảnh form.
-3. `observations` và `conditions` là nguồn query chính cho thống kê y khoa.
-4. `encounters` là hạt nhân của một lượt khám.
-5. `patients` và `patient_identifiers` là lớp định danh chính thức.
-6. DuckDB là tầng của Hub, không nhúng vào app Edge.
-
----
-
-## 13. Tài liệu tham chiếu
-
+## Related Documents
+- [07. Active Sync Protocol: The Encrypted SQLite Blob](07_active_sync_protocol.md)
+- [15. Hub Aggregation: DuckDB Analytics Pipeline](15_Hub_Aggregation.md)
+- [18. Two-App Architecture: Edge vs Hub](18_Two_App_Architecture.md)
 - [FHIR Patient R4](https://www.hl7.org/fhir/r4/patient.html)
 - [FHIR Encounter R4](https://www.hl7.org/fhir/R4/encounter.html)
 - [FHIR Observation R4](https://www.hl7.org/fhir/r4/observation.html)
