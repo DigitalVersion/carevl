@@ -1,0 +1,106 @@
+<svg width="1200" height="400" xmlns="http://www.w3.org/2000/svg">
+  <!-- Definitions -->
+  <defs>
+    <marker id="arrowhead" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+      <polygon points="0 0, 10 3, 0 6" fill="#64748b" />
+    </marker>
+    <filter id="shadow">
+      <feDropShadow dx="2" dy="2" stdDeviation="3" flood-opacity="0.3"/>
+    </filter>
+  </defs>
+
+  <!-- Title -->
+  <text x="600" y="30" text-anchor="middle" font-size="24" font-weight="bold" fill="#1e293b">
+    Bước 1: Chuẩn bị Hệ thống
+  </text>
+  <text x="600" y="55" text-anchor="middle" font-size="14" fill="#64748b">
+    Hub Admin chuẩn bị (1 lần) + Trạm cài đặt (4 bước)
+  </text>
+
+  <!-- Hub Preparation (One-time, top section) -->
+  <g id="hub-prep">
+    <rect x="50" y="80" width="1100" height="120" fill="#fef3c7" stroke="#f59e0b" stroke-width="3" rx="8"/>
+    <text x="70" y="110" font-size="16" font-weight="bold" fill="#92400e">Phase A: Hub Admin chuẩn bị (1 lần, trước khi phát trạm)</text>
+    
+    <rect x="70" y="125" width="240" height="60" fill="#fbbf24" stroke="#f59e0b" stroke-width="2" rx="5" filter="url(#shadow)"/>
+    <text x="190" y="150" text-anchor="middle" fill="white" font-size="13" font-weight="bold">1. Tạo Bot Account</text>
+    <text x="190" y="168" text-anchor="middle" fill="white" font-size="11">+ 100 Repos</text>
+    <text x="190" y="183" text-anchor="middle" fill="white" font-size="10">(station-001 ... station-100)</text>
+    
+    <line x1="310" y1="155" x2="340" y2="155" stroke="#92400e" stroke-width="3" marker-end="url(#arrowhead)"/>
+    
+    <rect x="340" y="125" width="240" height="60" fill="#fbbf24" stroke="#f59e0b" stroke-width="2" rx="5" filter="url(#shadow)"/>
+    <text x="460" y="150" text-anchor="middle" fill="white" font-size="13" font-weight="bold">2. Generate PATs</text>
+    <text x="460" y="168" text-anchor="middle" fill="white" font-size="11">Fine-grained (1 repo)</text>
+    <text x="460" y="183" text-anchor="middle" fill="white" font-size="10">Contents: Read/Write</text>
+    
+    <line x1="580" y1="155" x2="610" y2="155" stroke="#92400e" stroke-width="3" marker-end="url(#arrowhead)"/>
+    
+    <rect x="610" y="125" width="240" height="60" fill="#fbbf24" stroke="#f59e0b" stroke-width="2" rx="5" filter="url(#shadow)"/>
+    <text x="730" y="150" text-anchor="middle" fill="white" font-size="13" font-weight="bold">3. Export Invite Codes</text>
+    <text x="730" y="168" text-anchor="middle" fill="white" font-size="11">Base64 JSON</text>
+    <text x="730" y="183" text-anchor="middle" fill="white" font-size="10">{PAT, repo_url, station_name}</text>
+    
+    <line x1="850" y1="155" x2="880" y2="155" stroke="#92400e" stroke-width="3" marker-end="url(#arrowhead)"/>
+    
+    <rect x="880" y="125" width="240" height="60" fill="#fbbf24" stroke="#f59e0b" stroke-width="2" rx="5" filter="url(#shadow)"/>
+    <text x="1000" y="150" text-anchor="middle" fill="white" font-size="13" font-weight="bold">4. Gửi Invite Codes</text>
+    <text x="1000" y="168" text-anchor="middle" fill="white" font-size="11">Zalo / Email</text>
+    <text x="1000" y="183" text-anchor="middle" fill="white" font-size="10">→ Trưởng trạm</text>
+  </g>
+
+  <!-- Arrow down -->
+  <line x1="600" y1="200" x2="600" y2="230" stroke="#64748b" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text x="620" y="220" font-size="12" fill="#475569">Trạm nhận được Invite Code</text>
+
+  <!-- Gateway Setup States (Station side) -->
+  <g id="gateway-setup">
+    <rect x="50" y="230" width="1100" height="140" fill="#dbeafe" stroke="#3b82f6" stroke-width="3" rx="8"/>
+    <text x="70" y="260" font-size="16" font-weight="bold" fill="#1e40af">Phase B: Trạm cài đặt (Tự làm theo hướng dẫn)</text>
+    
+    <!-- State 1: Nhập Invite Code -->
+    <rect x="70" y="275" width="240" height="80" fill="#3b82f6" stroke="#2563eb" stroke-width="2" rx="5" filter="url(#shadow)"/>
+    <text x="190" y="300" text-anchor="middle" fill="white" font-size="13" font-weight="bold">1. Nhập Invite Code</text>
+    <text x="190" y="320" text-anchor="middle" fill="white" font-size="11">Paste code từ Zalo</text>
+    <text x="190" y="335" text-anchor="middle" fill="white" font-size="10">App tự decode:</text>
+    <text x="190" y="348" text-anchor="middle" fill="white" font-size="10">{PAT, repo_url, station_name}</text>
+    
+    <!-- Arrow -->
+    <line x1="310" y1="315" x2="340" y2="315" stroke="#1e40af" stroke-width="3" marker-end="url(#arrowhead)"/>
+    
+    <!-- State 2: Xác nhận tên trạm -->
+    <rect x="340" y="275" width="240" height="80" fill="#3b82f6" stroke="#2563eb" stroke-width="2" rx="5" filter="url(#shadow)"/>
+    <text x="460" y="300" text-anchor="middle" fill="white" font-size="13" font-weight="bold">2. Xác nhận tên trạm</text>
+    <text x="460" y="320" text-anchor="middle" fill="white" font-size="11">Pre-filled từ code</text>
+    <text x="460" y="335" text-anchor="middle" fill="white" font-size="10">VD: "Trạm Y Tế 001"</text>
+    <text x="460" y="348" text-anchor="middle" fill="white" font-size="10">Chỉ cần click Confirm</text>
+    
+    <!-- Arrow -->
+    <line x1="580" y1="315" x2="610" y2="315" stroke="#1e40af" stroke-width="3" marker-end="url(#arrowhead)"/>
+    
+    <!-- State 3: New/Restore -->
+    <rect x="610" y="275" width="240" height="80" fill="#3b82f6" stroke="#2563eb" stroke-width="2" rx="5" filter="url(#shadow)"/>
+    <text x="730" y="300" text-anchor="middle" fill="white" font-size="13" font-weight="bold">3. New / Restore</text>
+    <text x="730" y="320" text-anchor="middle" fill="white" font-size="11">• New: Tạo DB trống</text>
+    <text x="730" y="335" text-anchor="middle" fill="white" font-size="10">• Restore: Git pull snapshot</text>
+    <text x="730" y="348" text-anchor="middle" fill="white" font-size="10">từ GitHub Releases</text>
+    
+    <!-- Arrow -->
+    <line x1="850" y1="315" x2="880" y2="315" stroke="#1e40af" stroke-width="3" marker-end="url(#arrowhead)"/>
+    
+    <!-- State 4: PIN Setup -->
+    <rect x="880" y="275" width="240" height="80" fill="#3b82f6" stroke="#2563eb" stroke-width="2" rx="5" filter="url(#shadow)"/>
+    <text x="1000" y="300" text-anchor="middle" fill="white" font-size="13" font-weight="bold">4. Đặt PIN</text>
+    <text x="1000" y="320" text-anchor="middle" fill="white" font-size="11">6 số (VD: 123456)</text>
+    <text x="1000" y="335" text-anchor="middle" fill="white" font-size="10">Dùng để đăng nhập</text>
+    <text x="1000" y="348" text-anchor="middle" fill="white" font-size="10">offline hàng ngày</text>
+  </g>
+
+  <!-- Arrow to Ready -->
+  <line x1="600" y1="370" x2="600" y2="395" stroke="#10b981" stroke-width="4" marker-end="url(#arrowhead)"/>
+
+  <!-- Ready State -->
+  <ellipse cx="600" cy="395" rx="80" ry="35" fill="#10b981" stroke="#059669" stroke-width="3" filter="url(#shadow)"/>
+  <text x="600" y="395" text-anchor="middle" fill="white" font-size="16" font-weight="bold">✓ READY</text>
+  <text x="600" y="410" text-anchor="middle" fill="white" font-size="11">Sẵn sàng sử dụng</text>
+</svg>

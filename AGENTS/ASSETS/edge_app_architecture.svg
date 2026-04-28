@@ -1,0 +1,107 @@
+<svg width="800" height="600" xmlns="http://www.w3.org/2000/svg">
+  <!-- Title -->
+  <text x="400" y="30" text-anchor="middle" font-size="20" font-weight="bold" fill="#1e293b">
+    CareVL Edge App Architecture
+  </text>
+  
+  <!-- User Layer -->
+  <rect x="50" y="60" width="700" height="80" fill="#f1f5f9" stroke="#cbd5e1" stroke-width="2" rx="5"/>
+  <text x="400" y="85" text-anchor="middle" font-size="14" font-weight="bold" fill="#475569">
+    User Layer (Browser)
+  </text>
+  <rect x="150" y="95" width="120" height="35" fill="#3b82f6" rx="5"/>
+  <text x="210" y="118" text-anchor="middle" fill="white" font-size="12">Operator</text>
+  <rect x="340" y="95" width="120" height="35" fill="#3b82f6" rx="5"/>
+  <text x="400" y="118" text-anchor="middle" fill="white" font-size="12">Clinician</text>
+  <rect x="530" y="95" width="120" height="35" fill="#3b82f6" rx="5"/>
+  <text x="590" y="118" text-anchor="middle" fill="white" font-size="12">Lab Tech</text>
+  
+  <!-- Arrow down -->
+  <line x1="400" y1="140" x2="400" y2="170" stroke="#64748b" stroke-width="2" marker-end="url(#arrowhead)"/>
+  
+  <!-- Frontend Layer -->
+  <rect x="50" y="170" width="700" height="100" fill="#dbeafe" stroke="#3b82f6" stroke-width="2" rx="5"/>
+  <text x="400" y="195" text-anchor="middle" font-size="14" font-weight="bold" fill="#1e40af">
+    Frontend Layer
+  </text>
+  <rect x="100" y="210" width="150" height="45" fill="#60a5fa" rx="5"/>
+  <text x="175" y="228" text-anchor="middle" fill="white" font-size="11" font-weight="bold">HTMX</text>
+  <text x="175" y="245" text-anchor="middle" fill="white" font-size="10">Dynamic UI</text>
+  
+  <rect x="280" y="210" width="150" height="45" fill="#60a5fa" rx="5"/>
+  <text x="355" y="228" text-anchor="middle" fill="white" font-size="11" font-weight="bold">Alpine.js</text>
+  <text x="355" y="245" text-anchor="middle" fill="white" font-size="10">State Management</text>
+  
+  <rect x="460" y="210" width="150" height="45" fill="#60a5fa" rx="5"/>
+  <text x="535" y="228" text-anchor="middle" fill="white" font-size="11" font-weight="bold">TailwindCSS</text>
+  <text x="535" y="245" text-anchor="middle" fill="white" font-size="10">Styling</text>
+  
+  <!-- Arrow down -->
+  <line x1="400" y1="270" x2="400" y2="300" stroke="#64748b" stroke-width="2" marker-end="url(#arrowhead)"/>
+  
+  <!-- Backend Layer -->
+  <rect x="50" y="300" width="700" height="120" fill="#dcfce7" stroke="#10b981" stroke-width="2" rx="5"/>
+  <text x="400" y="325" text-anchor="middle" font-size="14" font-weight="bold" fill="#065f46">
+    Backend Layer (FastAPI)
+  </text>
+  
+  <rect x="80" y="340" width="130" height="65" fill="#34d399" rx="5"/>
+  <text x="145" y="360" text-anchor="middle" fill="white" font-size="11" font-weight="bold">UI Routes</text>
+  <text x="145" y="375" text-anchor="middle" fill="white" font-size="9">Jinja2 Templates</text>
+  <text x="145" y="390" text-anchor="middle" fill="white" font-size="9">HTMX Partials</text>
+  
+  <rect x="230" y="340" width="130" height="65" fill="#34d399" rx="5"/>
+  <text x="295" y="360" text-anchor="middle" fill="white" font-size="11" font-weight="bold">API Routes</text>
+  <text x="295" y="375" text-anchor="middle" fill="white" font-size="9">CRUD Operations</text>
+  <text x="295" y="390" text-anchor="middle" fill="white" font-size="9">Business Logic</text>
+  
+  <rect x="380" y="340" width="130" height="65" fill="#34d399" rx="5"/>
+  <text x="445" y="360" text-anchor="middle" fill="white" font-size="11" font-weight="bold">Auth Routes</text>
+  <text x="445" y="375" text-anchor="middle" fill="white" font-size="9">PIN Verification</text>
+  <text x="445" y="390" text-anchor="middle" fill="white" font-size="9">Session Mgmt</text>
+  
+  <rect x="530" y="340" width="130" height="65" fill="#34d399" rx="5"/>
+  <text x="595" y="360" text-anchor="middle" fill="white" font-size="11" font-weight="bold">Admin Routes</text>
+  <text x="595" y="375" text-anchor="middle" fill="white" font-size="9">Backup/Restore</text>
+  <text x="595" y="390" text-anchor="middle" fill="white" font-size="9">Config</text>
+  
+  <!-- Arrow down -->
+  <line x1="400" y1="420" x2="400" y2="450" stroke="#64748b" stroke-width="2" marker-end="url(#arrowhead)"/>
+  
+  <!-- Data Layer -->
+  <rect x="50" y="450" width="320" height="120" fill="#fef3c7" stroke="#f59e0b" stroke-width="2" rx="5"/>
+  <text x="210" y="475" text-anchor="middle" font-size="14" font-weight="bold" fill="#92400e">
+    Data Layer
+  </text>
+  <rect x="80" y="490" width="120" height="65" fill="#fbbf24" rx="5"/>
+  <text x="140" y="510" text-anchor="middle" fill="white" font-size="11" font-weight="bold">SQLite DB</text>
+  <text x="140" y="525" text-anchor="middle" fill="white" font-size="9">Local Storage</text>
+  <text x="140" y="540" text-anchor="middle" fill="white" font-size="9">Offline-first</text>
+  
+  <rect x="220" y="490" width="120" height="65" fill="#fbbf24" rx="5"/>
+  <text x="280" y="510" text-anchor="middle" fill="white" font-size="11" font-weight="bold">SQLAlchemy</text>
+  <text x="280" y="525" text-anchor="middle" fill="white" font-size="9">ORM Models</text>
+  <text x="280" y="540" text-anchor="middle" fill="white" font-size="9">Migrations</text>
+  
+  <!-- Services Layer -->
+  <rect x="430" y="450" width="320" height="120" fill="#e0e7ff" stroke="#6366f1" stroke-width="2" rx="5"/>
+  <text x="590" y="475" text-anchor="middle" font-size="14" font-weight="bold" fill="#3730a3">
+    Services Layer
+  </text>
+  <rect x="450" y="490" width="110" height="65" fill="#818cf8" rx="5"/>
+  <text x="505" y="510" text-anchor="middle" fill="white" font-size="11" font-weight="bold">Crypto</text>
+  <text x="505" y="525" text-anchor="middle" fill="white" font-size="9">AES-256</text>
+  <text x="505" y="540" text-anchor="middle" fill="white" font-size="9">Encryption</text>
+  
+  <rect x="580" y="490" width="110" height="65" fill="#818cf8" rx="5"/>
+  <text x="635" y="510" text-anchor="middle" fill="white" font-size="11" font-weight="bold">GitHub Sync</text>
+  <text x="635" y="525" text-anchor="middle" fill="white" font-size="9">Upload</text>
+  <text x="635" y="540" text-anchor="middle" fill="white" font-size="9">Snapshots</text>
+  
+  <!-- Arrow marker definition -->
+  <defs>
+    <marker id="arrowhead" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+      <polygon points="0 0, 10 3, 0 6" fill="#64748b" />
+    </marker>
+  </defs>
+</svg>

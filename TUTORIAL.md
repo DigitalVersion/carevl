@@ -1,6 +1,37 @@
-# Sổ tay Vận hành CareVL (Visual Tutorial - Windows Edition)
+# Sổ tay Vận hành CareVL Edge (Visual Tutorial - Windows Edition)
 
-Tài liệu này hướng dẫn chi tiết quy trình cài đặt và sử dụng hệ thống CareVL dành riêng cho môi trường Windows tại các trạm y tế / đoàn khám lưu động.
+Tài liệu này hướng dẫn chi tiết quy trình cài đặt và sử dụng **CareVL Edge App** (ứng dụng trạm) dành riêng cho môi trường Windows tại các trạm y tế / đoàn khám lưu động.
+
+> **Lưu ý:** Tài liệu này chỉ dành cho **Edge App** (ứng dụng tại trạm). Nếu bạn là Admin Hub cần tổng hợp dữ liệu từ nhiều trạm, vui lòng xem [Hub App Documentation](AGENTS/ACTIVE/18_Two_App_Architecture.md).
+
+---
+
+## Kiến trúc Hệ thống CareVL
+
+CareVL được thiết kế theo mô hình **Two-App Architecture**:
+
+### 🏥 Edge App (Trạm) - Bạn đang dùng
+- **Mục đích:** Quản lý dữ liệu tại trạm y tế
+- **Tech:** FastAPI + SQLite + HTMX
+- **Deployment:** Windows .exe (offline-first)
+- **Users:** Operator, Bác sĩ, Lab Tech, Trưởng trạm
+
+![Edge App Architecture](AGENTS/ASSETS/edge_app_architecture.svg)
+
+### 📊 Hub App (Tỉnh) - Dành cho Admin Hub
+- **Mục đích:** Tổng hợp dữ liệu từ 100 trạm
+- **Tech:** Python CLI + DuckDB + Jupyter
+- **Deployment:** Python package
+- **Users:** Admin Hub, Data Analyst
+
+![Hub App Architecture](AGENTS/ASSETS/hub_app_architecture.svg)
+
+**Luồng dữ liệu:**
+```
+Edge App (Trạm) → Upload Snapshot → GitHub → Hub App (Tỉnh) → Báo cáo tổng hợp
+```
+
+Chi tiết kiến trúc: [18. Two-App Architecture](AGENTS/ACTIVE/18_Two_App_Architecture.md)
 
 ---
 
@@ -58,19 +89,24 @@ Tạo 1 mã PIN 6 số. Mã này dùng để mở khóa hệ thống hàng ngày
 
 Hệ thống cung cấp một Menu (Sidebar) với 10 chức năng. Thanh menu này sẽ ẩn/hiện tự động trên màn hình điện thoại.
 
-### Tổng quan Luồng hoạt động (State Machine)
+### Tổng quan Luồng hoạt động
 
-Sơ đồ dưới đây minh họa toàn bộ luồng hoạt động của hệ thống CareVL, từ khởi tạo Gateway đến các thao tác hàng ngày theo từng Persona:
+Hệ thống CareVL hoạt động theo 3 bước chính:
 
-![CareVL State Machine](AGENTS/ASSETS/state_machine_diagram.svg)
+#### **Bước 1: Chuẩn bị Hệ thống**
+Hub Admin chuẩn bị (1 lần) + Trạm cài đặt (4 bước)
 
-**Giải thích:**
-- **Hàng trên (màu vàng):** Hub Admin chuẩn bị 1 lần (tạo repos, generate PATs, gửi invite codes)
-- **Hàng giữa (màu xanh):** Trạm cài đặt 4 bước (nhập code, confirm tên, new/restore, PIN)
-- **Persona A (màu vàng):** Tiếp nhận bệnh nhân, phát Sticker ID
-- **Persona B (màu xanh):** Bác sĩ khám và nhập sinh hiệu
-- **Persona C (màu hồng):** Nhập kết quả xét nghiệm trễ (Lab, X-ray)
-- **Persona D (màu tím nhạt):** Trưởng trạm quản lý báo cáo, xuất dữ liệu
+![Workflow 1: Preparation](AGENTS/ASSETS/workflow_1_preparation.svg)
+
+#### **Bước 2: Sử dụng Hàng ngày**
+4 Personas với 10 chức năng Sidebar
+
+![Workflow 2: Daily Usage](AGENTS/ASSETS/workflow_2_daily_usage.svg)
+
+#### **Bước 3: Xuất Dữ liệu & Tổng hợp**
+Edge App → GitHub → Hub App (Two-App Architecture)
+
+![Workflow 3: Data Export](AGENTS/ASSETS/workflow_3_data_export.svg)
 
 ---
 

@@ -69,6 +69,8 @@ Các quyết định hiện tại của hệ thống.
 - [16. Testing Guidelines](AGENTS/ACTIVE/16_Testing_Guidelines.md)
 - [17. Invite Code Authentication: Fine-grained PAT Provisioning](AGENTS/ACTIVE/17_Invite_Code_Authentication.md)
 - [18. Two-App Architecture: Edge vs Hub](AGENTS/ACTIVE/18_Two_App_Architecture.md)
+  - 📊 [Edge App Architecture Diagram](AGENTS/ASSETS/edge_app_architecture.svg)
+  - 📊 [Hub App Architecture Diagram](AGENTS/ASSETS/hub_app_architecture.svg)
 
 ---
 

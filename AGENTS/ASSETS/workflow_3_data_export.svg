@@ -1,0 +1,141 @@
+<svg width="1200" height="650" xmlns="http://www.w3.org/2000/svg">
+  <!-- Definitions -->
+  <defs>
+    <marker id="arrowhead" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+      <polygon points="0 0, 10 3, 0 6" fill="#64748b" />
+    </marker>
+    <marker id="arrowhead-red" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+      <polygon points="0 0, 10 3, 0 6" fill="#dc2626" />
+    </marker>
+    <marker id="arrowhead-cyan" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+      <polygon points="0 0, 10 3, 0 6" fill="#0891b2" />
+    </marker>
+    <filter id="shadow">
+      <feDropShadow dx="2" dy="2" stdDeviation="3" flood-opacity="0.3"/>
+    </filter>
+  </defs>
+
+  <!-- Title -->
+  <text x="600" y="30" text-anchor="middle" font-size="24" font-weight="bold" fill="#1e293b">
+    Bước 3: Xuất Dữ liệu &amp; Tổng hợp
+  </text>
+  <text x="600" y="55" text-anchor="middle" font-size="14" fill="#64748b">
+    Edge App → GitHub → Hub App (Two-App Architecture)
+  </text>
+
+  <!-- Edge App (Station) -->
+  <g id="edge-app">
+    <rect x="50" y="90" width="320" height="200" fill="#dbeafe" stroke="#3b82f6" stroke-width="3" rx="8"/>
+    <text x="70" y="120" font-size="16" font-weight="bold" fill="#1e40af">Edge App (Trạm 001)</text>
+    <text x="70" y="140" font-size="12" fill="#1e40af">FastAPI + SQLite + HTMX</text>
+    
+    <!-- SQLite DB -->
+    <rect x="70" y="160" width="280" height="60" fill="#3b82f6" stroke="#2563eb" stroke-width="2" rx="5" filter="url(#shadow)"/>
+    <text x="210" y="185" text-anchor="middle" fill="white" font-size="14" font-weight="bold">SQLite Database</text>
+    <text x="210" y="205" text-anchor="middle" fill="white" font-size="11">carevl.db (Unencrypted)</text>
+    
+    <!-- Arrow down -->
+    <line x1="210" y1="220" x2="210" y2="240" stroke="#1e40af" stroke-width="2" marker-end="url(#arrowhead)"/>
+    
+    <!-- Export Action -->
+    <rect x="70" y="240" width="280" height="40" fill="#dc2626" stroke="#b91c1c" stroke-width="3" rx="5" filter="url(#shadow)"/>
+    <text x="210" y="265" text-anchor="middle" fill="white" font-size="14" font-weight="bold">7. Xuất dữ liệu Hub</text>
+  </g>
+
+  <!-- Arrow to Encryption -->
+  <line x1="370" y1="260" x2="420" y2="260" stroke="#dc2626" stroke-width="3" marker-end="url(#arrowhead-red)"/>
+  <text x="395" y="250" text-anchor="middle" font-size="11" fill="#dc2626">Encrypt</text>
+
+  <!-- Encryption Process -->
+  <g id="encryption">
+    <rect x="420" y="200" width="200" height="120" fill="#fef3c7" stroke="#f59e0b" stroke-width="2" rx="8"/>
+    <text x="520" y="225" text-anchor="middle" font-size="14" font-weight="bold" fill="#92400e">Crypto Service</text>
+    
+    <rect x="440" y="240" width="160" height="70" fill="#fbbf24" stroke="#f59e0b" stroke-width="2" rx="5"/>
+    <text x="520" y="260" text-anchor="middle" fill="white" font-size="12" font-weight="bold">AES-256 Encrypt</text>
+    <text x="520" y="278" text-anchor="middle" fill="white" font-size="10">+ Timestamp</text>
+    <text x="520" y="293" text-anchor="middle" fill="white" font-size="10">+ Checksum</text>
+  </g>
+
+  <!-- Arrow to GitHub -->
+  <line x1="620" y1="260" x2="670" y2="260" stroke="#dc2626" stroke-width="3" marker-end="url(#arrowhead-red)"/>
+  <text x="645" y="250" text-anchor="middle" font-size="11" fill="#dc2626">Upload</text>
+
+  <!-- GitHub Releases -->
+  <g id="github">
+    <rect x="670" y="90" width="280" height="380" fill="#f1f5f9" stroke="#64748b" stroke-width="3" rx="8"/>
+    <text x="810" y="120" text-anchor="middle" font-size="16" font-weight="bold" fill="#1e293b">GitHub Releases</text>
+    <text x="810" y="140" text-anchor="middle" font-size="12" fill="#475569">(Data Transport Layer)</text>
+    
+    <!-- Station 001 -->
+    <rect x="690" y="160" width="240" height="60" fill="#64748b" stroke="#475569" stroke-width="2" rx="5" filter="url(#shadow)"/>
+    <text x="810" y="180" text-anchor="middle" fill="white" font-size="12" font-weight="bold">station-001 repo</text>
+    <text x="810" y="198" text-anchor="middle" fill="white" font-size="10">Release: 2026-04-28</text>
+    <text x="810" y="213" text-anchor="middle" fill="white" font-size="10">carevl-20260428.db.enc</text>
+    
+    <!-- Station 002 -->
+    <rect x="690" y="235" width="240" height="60" fill="#64748b" stroke="#475569" stroke-width="2" rx="5" filter="url(#shadow)"/>
+    <text x="810" y="255" text-anchor="middle" fill="white" font-size="12" font-weight="bold">station-002 repo</text>
+    <text x="810" y="273" text-anchor="middle" fill="white" font-size="10">Release: 2026-04-28</text>
+    <text x="810" y="288" text-anchor="middle" fill="white" font-size="10">carevl-20260428.db.enc</text>
+    
+    <!-- Dots -->
+    <text x="810" y="320" text-anchor="middle" font-size="20" fill="#94a3b8">...</text>
+    
+    <!-- Station 100 -->
+    <rect x="690" y="340" width="240" height="60" fill="#64748b" stroke="#475569" stroke-width="2" rx="5" filter="url(#shadow)"/>
+    <text x="810" y="360" text-anchor="middle" fill="white" font-size="12" font-weight="bold">station-100 repo</text>
+    <text x="810" y="378" text-anchor="middle" fill="white" font-size="10">Release: 2026-04-28</text>
+    <text x="810" y="393" text-anchor="middle" fill="white" font-size="10">carevl-20260428.db.enc</text>
+    
+    <text x="810" y="430" text-anchor="middle" font-size="11" fill="#64748b" font-style="italic">Async, offline-friendly</text>
+    <text x="810" y="450" text-anchor="middle" font-size="11" fill="#64748b" font-style="italic">No real-time sync needed</text>
+  </g>
+
+  <!-- Arrow to Hub -->
+  <line x1="950" y1="260" x2="1000" y2="260" stroke="#0891b2" stroke-width="3" marker-end="url(#arrowhead-cyan)"/>
+  <text x="975" y="250" text-anchor="middle" font-size="11" fill="#0891b2">Download</text>
+
+  <!-- Hub App -->
+  <g id="hub-app">
+    <rect x="1000" y="90" width="150" height="380" fill="#cffafe" stroke="#0891b2" stroke-width="3" rx="8"/>
+    <text x="1075" y="120" text-anchor="middle" font-size="16" font-weight="bold" fill="#164e63">Hub App</text>
+    <text x="1075" y="140" text-anchor="middle" font-size="11" fill="#0e7490">(Tỉnh)</text>
+    
+    <!-- Step 1 -->
+    <rect x="1015" y="160" width="120" height="60" fill="#0891b2" stroke="#0e7490" stroke-width="2" rx="5" filter="url(#shadow)"/>
+    <text x="1075" y="180" text-anchor="middle" fill="white" font-size="11" font-weight="bold">1. Download</text>
+    <text x="1075" y="198" text-anchor="middle" fill="white" font-size="9">100 repos</text>
+    <text x="1075" y="211" text-anchor="middle" fill="white" font-size="9">Org-level PAT</text>
+    
+    <!-- Step 2 -->
+    <rect x="1015" y="235" width="120" height="60" fill="#0891b2" stroke="#0e7490" stroke-width="2" rx="5" filter="url(#shadow)"/>
+    <text x="1075" y="255" text-anchor="middle" fill="white" font-size="11" font-weight="bold">2. Decrypt</text>
+    <text x="1075" y="273" text-anchor="middle" fill="white" font-size="9">Master key</text>
+    <text x="1075" y="286" text-anchor="middle" fill="white" font-size="9">AES-256</text>
+    
+    <!-- Step 3 -->
+    <rect x="1015" y="310" width="120" height="60" fill="#0891b2" stroke="#0e7490" stroke-width="2" rx="5" filter="url(#shadow)"/>
+    <text x="1075" y="330" text-anchor="middle" fill="white" font-size="11" font-weight="bold">3. Aggregate</text>
+    <text x="1075" y="348" text-anchor="middle" fill="white" font-size="9">DuckDB</text>
+    <text x="1075" y="361" text-anchor="middle" fill="white" font-size="9">JOIN queries</text>
+    
+    <!-- Step 4 -->
+    <rect x="1015" y="385" width="120" height="60" fill="#0891b2" stroke="#0e7490" stroke-width="2" rx="5" filter="url(#shadow)"/>
+    <text x="1075" y="405" text-anchor="middle" fill="white" font-size="11" font-weight="bold">4. Reports</text>
+    <text x="1075" y="423" text-anchor="middle" fill="white" font-size="9">Excel, PDF</text>
+    <text x="1075" y="436" text-anchor="middle" fill="white" font-size="9">Parquet</text>
+  </g>
+
+  <!-- Bottom explanation -->
+  <g id="explanation">
+    <rect x="50" y="500" width="1100" height="130" fill="#f8fafc" stroke="#cbd5e1" stroke-width="2" rx="8"/>
+    <text x="70" y="530" font-size="16" font-weight="bold" fill="#1e293b">Luồng dữ liệu chi tiết:</text>
+    
+    <text x="70" y="560" font-size="13" fill="#475569" font-weight="bold">Edge App (Trạm):</text>
+    <text x="90" y="580" font-size="12" fill="#64748b">• Trưởng trạm click "7. Xuất dữ liệu Hub" → App tự động encrypt SQLite bằng AES-256 → Upload lên GitHub Releases</text>
+    
+    <text x="70" y="605" font-size="13" fill="#475569" font-weight="bold">Hub App (Tỉnh):</text>
+    <text x="90" y="625" font-size="12" fill="#64748b">• Admin Hub chạy CLI: `uv run carevl-hub download --date 2026-04-28` → Download 100 snapshots → Decrypt → DuckDB aggregate → Generate reports</text>
+  </g>
+</svg>

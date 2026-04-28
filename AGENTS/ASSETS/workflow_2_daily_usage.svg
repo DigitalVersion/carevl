@@ -1,0 +1,187 @@
+<svg width="1400" height="900" xmlns="http://www.w3.org/2000/svg">
+  <!-- Definitions -->
+  <defs>
+    <marker id="arrowhead" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+      <polygon points="0 0, 10 3, 0 6" fill="#64748b" />
+    </marker>
+    <filter id="shadow">
+      <feDropShadow dx="2" dy="2" stdDeviation="3" flood-opacity="0.3"/>
+    </filter>
+  </defs>
+
+  <!-- Title -->
+  <text x="700" y="30" text-anchor="middle" font-size="24" font-weight="bold" fill="#1e293b">
+    Bước 2: Sử dụng Hàng ngày - 10 Chức năng Sidebar
+  </text>
+  <text x="700" y="55" text-anchor="middle" font-size="14" fill="#64748b">
+    Edge App Workflow theo 4 Personas
+  </text>
+
+  <!-- Left Column: Personas A, B, C -->
+  
+  <!-- Persona A: Tiếp nhận (Operator) -->
+  <g id="persona-a">
+    <rect x="50" y="90" width="380" height="140" fill="#fef3c7" stroke="#f59e0b" stroke-width="3" rx="8"/>
+    <text x="70" y="120" font-size="18" font-weight="bold" fill="#92400e">Persona A: Tiếp nhận</text>
+    <text x="70" y="145" font-size="13" fill="#92400e">(Operator - Quầy đón tiếp)</text>
+    
+    <rect x="70" y="160" width="340" height="55" fill="#fbbf24" stroke="#f59e0b" stroke-width="2" rx="5" filter="url(#shadow)"/>
+    <text x="240" y="183" text-anchor="middle" fill="white" font-size="15" font-weight="bold">1. Tiếp nhận mới</text>
+    <text x="240" y="203" text-anchor="middle" fill="white" font-size="11">Quét CCCD → Tạo Patient &amp; Encounter → Phát Sticker ID</text>
+  </g>
+
+  <!-- Arrow down -->
+  <line x1="240" y1="230" x2="240" y2="270" stroke="#64748b" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text x="260" y="255" font-size="12" fill="#475569">Bệnh nhân vào hàng đợi</text>
+
+  <!-- Persona B: Lâm sàng (Clinician) -->
+  <g id="persona-b">
+    <rect x="50" y="270" width="380" height="240" fill="#dbeafe" stroke="#3b82f6" stroke-width="3" rx="8"/>
+    <text x="70" y="300" font-size="18" font-weight="bold" fill="#1e40af">Persona B: Lâm sàng</text>
+    <text x="70" y="325" font-size="13" fill="#1e40af">(Bác sĩ, Điều dưỡng)</text>
+    
+    <!-- Chức năng 2 -->
+    <rect x="70" y="340" width="340" height="55" fill="#3b82f6" stroke="#2563eb" stroke-width="2" rx="5" filter="url(#shadow)"/>
+    <text x="240" y="363" text-anchor="middle" fill="white" font-size="15" font-weight="bold">2. Lượt khám</text>
+    <text x="240" y="383" text-anchor="middle" fill="white" font-size="11">Xem danh sách hàng đợi → Chọn bệnh nhân để khám</text>
+    
+    <!-- Arrow down -->
+    <line x1="240" y1="395" x2="240" y2="410" stroke="#1e40af" stroke-width="2" marker-end="url(#arrowhead)"/>
+    
+    <!-- Chức năng 3 -->
+    <rect x="70" y="410" width="340" height="85" fill="#3b82f6" stroke="#2563eb" stroke-width="2" rx="5" filter="url(#shadow)"/>
+    <text x="240" y="433" text-anchor="middle" fill="white" font-size="15" font-weight="bold">3. Hồ sơ bệnh nhân</text>
+    <text x="240" y="453" text-anchor="middle" fill="white" font-size="11">Nhập sinh hiệu: Huyết áp, Nhịp tim, Nhiệt độ</text>
+    <text x="240" y="468" text-anchor="middle" fill="white" font-size="11">Xem lịch sử khám</text>
+    <text x="240" y="483" text-anchor="middle" fill="white" font-size="11">→ Tạo Observation resources</text>
+  </g>
+
+  <!-- Arrow to Persona C (delayed results) -->
+  <path d="M 430 450 L 530 450 L 530 360 L 600 360" stroke="#64748b" stroke-width="3" stroke-dasharray="5,5" marker-end="url(#arrowhead)" fill="none"/>
+  <text x="460" y="440" font-size="11" fill="#475569">Kết quả trễ</text>
+  <text x="460" y="455" font-size="11" fill="#475569">(Lab, X-ray)</text>
+
+  <!-- Persona C: Nhập liệu (Lab Tech) -->
+  <g id="persona-c">
+    <rect x="600" y="270" width="380" height="240" fill="#fce7f3" stroke="#ec4899" stroke-width="3" rx="8"/>
+    <text x="620" y="300" font-size="18" font-weight="bold" fill="#9f1239">Persona C: Nhập liệu</text>
+    <text x="620" y="325" font-size="13" fill="#9f1239">(Lab Tech, Nhân viên xét nghiệm)</text>
+    
+    <!-- Chức năng 4 -->
+    <rect x="620" y="340" width="340" height="55" fill="#ec4899" stroke="#db2777" stroke-width="2" rx="5" filter="url(#shadow)"/>
+    <text x="790" y="363" text-anchor="middle" fill="white" font-size="15" font-weight="bold">4. Nhập liệu (Aggregate)</text>
+    <text x="790" y="383" text-anchor="middle" fill="white" font-size="11">Số liệu tổng hợp → MeasureReport (không gắn BN cụ thể)</text>
+    
+    <!-- Arrow down -->
+    <line x1="790" y1="395" x2="790" y2="410" stroke="#9f1239" stroke-width="2" marker-end="url(#arrowhead)"/>
+    
+    <!-- Chức năng 5 -->
+    <rect x="620" y="410" width="340" height="85" fill="#ec4899" stroke="#db2777" stroke-width="2" rx="5" filter="url(#shadow)"/>
+    <text x="790" y="433" text-anchor="middle" fill="white" font-size="15" font-weight="bold">5. Cập nhật kết quả</text>
+    <text x="790" y="453" text-anchor="middle" fill="white" font-size="11">Quét Sticker ID → Tìm Encounter</text>
+    <text x="790" y="468" text-anchor="middle" fill="white" font-size="11">Nhập kết quả Lab, X-Quang</text>
+    <text x="790" y="483" text-anchor="middle" fill="white" font-size="11">→ Tạo DiagnosticReport</text>
+  </g>
+
+  <!-- Persona D: Trưởng trạm (Admin) - Right side, full height -->
+  <g id="persona-d">
+    <rect x="1020" y="90" width="330" height="700" fill="#f3e8ff" stroke="#a855f7" stroke-width="3" rx="8"/>
+    <text x="1040" y="120" font-size="18" font-weight="bold" fill="#6b21a8">Persona D: Trưởng trạm</text>
+    <text x="1040" y="145" font-size="13" fill="#6b21a8">(Admin, Manager, Quản lý)</text>
+    
+    <!-- Chức năng 6 -->
+    <rect x="1040" y="165" width="290" height="70" fill="#a855f7" stroke="#9333ea" stroke-width="2" rx="5" filter="url(#shadow)"/>
+    <text x="1185" y="193" text-anchor="middle" fill="white" font-size="15" font-weight="bold">6. Báo cáo</text>
+    <text x="1185" y="213" text-anchor="middle" fill="white" font-size="11">Xem thống kê, biểu đồ</text>
+    <text x="1185" y="228" text-anchor="middle" fill="white" font-size="11">Xuất Excel, PDF</text>
+    
+    <!-- Chức năng 7 -->
+    <rect x="1040" y="255" width="290" height="70" fill="#dc2626" stroke="#b91c1c" stroke-width="3" rx="5" filter="url(#shadow)"/>
+    <text x="1185" y="283" text-anchor="middle" fill="white" font-size="15" font-weight="bold">7. Xuất dữ liệu Hub</text>
+    <text x="1185" y="303" text-anchor="middle" fill="white" font-size="11">Backup + Encrypt + Upload</text>
+    <text x="1185" y="318" text-anchor="middle" fill="white" font-size="11">→ GitHub Releases</text>
+    
+    <!-- Chức năng 8 -->
+    <rect x="1040" y="345" width="290" height="70" fill="#a855f7" stroke="#9333ea" stroke-width="2" rx="5" filter="url(#shadow)"/>
+    <text x="1185" y="373" text-anchor="middle" fill="white" font-size="15" font-weight="bold">8. Liên thông (Audit)</text>
+    <text x="1185" y="393" text-anchor="middle" fill="white" font-size="11">Xem AuditEvent logs</text>
+    <text x="1185" y="408" text-anchor="middle" fill="white" font-size="11">Lịch sử thay đổi dữ liệu</text>
+    
+    <!-- Chức năng 9 -->
+    <rect x="1040" y="435" width="290" height="70" fill="#a855f7" stroke="#9333ea" stroke-width="2" rx="5" filter="url(#shadow)"/>
+    <text x="1185" y="463" text-anchor="middle" fill="white" font-size="15" font-weight="bold">9. Cài đặt trạm</text>
+    <text x="1185" y="483" text-anchor="middle" fill="white" font-size="11">Cấu hình tên trạm, SITE_ID</text>
+    <text x="1185" y="498" text-anchor="middle" fill="white" font-size="11">Thay đổi mã PIN</text>
+    
+    <!-- Chức năng 10 -->
+    <rect x="1040" y="525" width="290" height="70" fill="#a855f7" stroke="#9333ea" stroke-width="2" rx="5" filter="url(#shadow)"/>
+    <text x="1185" y="553" text-anchor="middle" fill="white" font-size="15" font-weight="bold">10. Giới thiệu</text>
+    <text x="1185" y="573" text-anchor="middle" fill="white" font-size="11">Thông tin phiên bản</text>
+    <text x="1185" y="588" text-anchor="middle" fill="white" font-size="11">Hướng dẫn &amp; Hỗ trợ</text>
+    
+    <!-- Note box -->
+    <rect x="1040" y="620" width="290" height="150" fill="#fef3c7" stroke="#f59e0b" stroke-width="2" rx="5"/>
+    <text x="1185" y="645" text-anchor="middle" font-size="13" font-weight="bold" fill="#92400e">Lưu ý quan trọng:</text>
+    <text x="1185" y="670" text-anchor="middle" font-size="11" fill="#92400e">Chức năng 7 là cầu nối</text>
+    <text x="1185" y="688" text-anchor="middle" font-size="11" fill="#92400e">giữa Edge App và Hub App</text>
+    <text x="1185" y="710" text-anchor="middle" font-size="10" fill="#92400e">(Xem chi tiết ở Bước 3:</text>
+    <text x="1185" y="728" text-anchor="middle" font-size="10" fill="#92400e">Xuất Dữ liệu &amp; Tổng hợp)</text>
+    <text x="1185" y="755" text-anchor="middle" font-size="10" fill="#dc2626" font-weight="bold">→ workflow_3_data_export.svg</text>
+  </g>
+
+  <!-- Data flow arrows -->
+  <path d="M 430 180 L 1020 180" stroke="#64748b" stroke-width="2" stroke-dasharray="3,3" marker-end="url(#arrowhead)" fill="none"/>
+  <text x="700" y="170" text-anchor="middle" font-size="11" fill="#475569">Dữ liệu từ A, B, C → Báo cáo (D)</text>
+  
+  <path d="M 980 360 L 1020 360" stroke="#64748b" stroke-width="2" stroke-dasharray="3,3" marker-end="url(#arrowhead)" fill="none"/>
+
+  <!-- Bottom Legend -->
+  <g id="legend">
+    <rect x="50" y="540" width="930" height="250" fill="#f8fafc" stroke="#cbd5e1" stroke-width="2" rx="8"/>
+    <text x="70" y="570" font-size="16" font-weight="bold" fill="#1e293b">Chi tiết 10 Chức năng Sidebar:</text>
+    
+    <!-- Column 1 -->
+    <text x="70" y="600" font-size="13" fill="#92400e" font-weight="bold">1. Tiếp nhận mới (Persona A):</text>
+    <text x="90" y="620" font-size="11" fill="#64748b">Quét CCCD → Tạo Patient + Encounter → Phát Sticker ID</text>
+    
+    <text x="70" y="650" font-size="13" fill="#1e40af" font-weight="bold">2. Lượt khám (Persona B):</text>
+    <text x="90" y="670" font-size="11" fill="#64748b">Xem hàng đợi bệnh nhân → Chọn để bắt đầu khám</text>
+    
+    <text x="70" y="700" font-size="13" fill="#1e40af" font-weight="bold">3. Hồ sơ bệnh nhân (Persona B):</text>
+    <text x="90" y="720" font-size="11" fill="#64748b">Nhập sinh hiệu (BP, HR, Temp) → Xem lịch sử → Tạo Observation</text>
+    
+    <text x="70" y="750" font-size="13" fill="#9f1239" font-weight="bold">4. Nhập liệu Aggregate (Persona C):</text>
+    <text x="90" y="770" font-size="11" fill="#64748b">Số liệu tổng hợp không gắn BN cụ thể → MeasureReport</text>
+    
+    <!-- Column 2 -->
+    <text x="520" y="600" font-size="13" fill="#9f1239" font-weight="bold">5. Cập nhật kết quả (Persona C):</text>
+    <text x="540" y="620" font-size="11" fill="#64748b">Quét Sticker ID → Nhập Lab/X-ray → DiagnosticReport</text>
+    
+    <text x="520" y="650" font-size="13" fill="#6b21a8" font-weight="bold">6. Báo cáo (Persona D):</text>
+    <text x="540" y="670" font-size="11" fill="#64748b">Xem thống kê, biểu đồ → Xuất Excel/PDF</text>
+    
+    <text x="520" y="700" font-size="13" fill="#dc2626" font-weight="bold">7. Xuất dữ liệu Hub (Persona D):</text>
+    <text x="540" y="720" font-size="11" fill="#64748b">Backup → Encrypt (AES-256) → Upload GitHub Releases</text>
+    
+    <text x="520" y="750" font-size="13" fill="#6b21a8" font-weight="bold">8-10. Quản trị (Persona D):</text>
+    <text x="540" y="770" font-size="11" fill="#64748b">Audit logs, Cài đặt trạm, Giới thiệu hệ thống</text>
+  </g>
+
+  <!-- Color Legend -->
+  <g id="color-legend">
+    <rect x="50" y="810" width="930" height="70" fill="#f8fafc" stroke="#cbd5e1" stroke-width="2" rx="8"/>
+    <text x="70" y="840" font-size="14" font-weight="bold" fill="#1e293b">Màu sắc Personas:</text>
+    
+    <rect x="70" y="850" width="20" height="20" fill="#fbbf24" stroke="#f59e0b" stroke-width="2"/>
+    <text x="100" y="865" font-size="12" fill="#475569">Persona A: Tiếp nhận (Vàng)</text>
+    
+    <rect x="280" y="850" width="20" height="20" fill="#3b82f6" stroke="#2563eb" stroke-width="2"/>
+    <text x="310" y="865" font-size="12" fill="#475569">Persona B: Lâm sàng (Xanh)</text>
+    
+    <rect x="490" y="850" width="20" height="20" fill="#ec4899" stroke="#db2777" stroke-width="2"/>
+    <text x="520" y="865" font-size="12" fill="#475569">Persona C: Nhập liệu (Hồng)</text>
+    
+    <rect x="700" y="850" width="20" height="20" fill="#a855f7" stroke="#9333ea" stroke-width="2"/>
+    <text x="730" y="865" font-size="12" fill="#475569">Persona D: Trưởng trạm (Tím)</text>
+  </g>
+</svg>

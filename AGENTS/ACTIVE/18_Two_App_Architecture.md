@@ -19,7 +19,7 @@ Hệ thống CareVL có 2 nhóm user hoàn toàn khác nhau:
 
 ## Decision
 
-**Tách thành 2 app độc lập:**
+**Phát triển 2 app trong 1 monorepo với cấu trúc rõ ràng:**
 
 ### 1. CareVL Edge (Station App)
 
@@ -44,7 +44,7 @@ Hệ thống CareVL có 2 nhóm user hoàn toàn khác nhau:
 
 **Codebase size:** ~10,000-20,000 dòng
 
-**Repository:** `DigitalVersion/carevl` (repo hiện tại)
+**Location:** `edge/` folder trong monorepo
 
 ---
 
@@ -74,9 +74,16 @@ Hệ thống CareVL có 2 nhóm user hoàn toàn khác nhau:
 
 **Codebase size:** ~5,000-10,000 dòng
 
-**Repository:** `DigitalVersion/carevl-hub` (repo mới)
+**Location:** `hub/` folder trong monorepo
 
-## Architecture Diagram
+**Authentication:**
+- Hub app đăng nhập bằng **GitHub Classic PAT** của chủ tổ chức (organization owner)
+- Cần `repo` scope để access tất cả repos của các trạm
+- Hoặc dùng **GitHub App** với quyền read releases từ organization
+
+## Architecture Diagrams
+
+### Ecosystem Overview
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -111,6 +118,31 @@ Hệ thống CareVL có 2 nhóm user hoàn toàn khác nhau:
 └──────────────────────┘     └──────────────────────┘
 ```
 
+### Edge App Architecture (Station)
+
+![Edge App Architecture](../ASSETS/edge_app_architecture.svg)
+
+**Layers:**
+- **User Layer:** Operator, Clinician, Lab Tech (Browser-based)
+- **Frontend:** HTMX (dynamic UI) + Alpine.js (state) + TailwindCSS (styling)
+- **Backend:** FastAPI routes (UI, API, Auth, Admin)
+- **Data:** SQLite + SQLAlchemy ORM
+- **Services:** Crypto (AES-256) + GitHub Sync (upload snapshots)
+
+### Hub App Architecture (Analytics)
+
+![Hub App Architecture](../ASSETS/hub_app_architecture.svg)
+
+**Pipeline:**
+1. **CLI Layer:** Typer commands (init, download, aggregate, report, dashboard)
+2. **Data Pipeline:**
+   - GitHub Downloader (org-level PAT, 100 repos)
+   - Crypto Service (decrypt snapshots)
+   - DuckDB Aggregator (JOIN queries, stats)
+   - Report Generator (Excel, PDF, charts)
+3. **Analytics:** Jupyter Notebooks, Streamlit Dashboard, Pandas
+4. **Output:** Excel, PDF, Parquet, Email alerts
+
 ## Communication Protocol
 
 **Edge → Hub (One-way, async):**
@@ -121,75 +153,104 @@ Hệ thống CareVL có 2 nhóm user hoàn toàn khác nhau:
 
 **Không có real-time sync!** Hub chỉ pull data khi cần.
 
-## Codebase Structure
+## Monorepo Structure
 
-### CareVL Edge (`DigitalVersion/carevl`)
 ```
-carevl/
-├── app/
-│   ├── api/          # FastAPI routes
-│   ├── core/         # Config, database
-│   ├── models/       # SQLAlchemy models
-│   ├── services/     # Business logic
-│   ├── templates/    # Jinja2 HTML
-│   └── static/       # CSS, JS
-├── scripts/          # Setup scripts
-├── tests/            # Pytest
-├── carevl.spec       # PyInstaller config
-└── pyproject.toml    # Dependencies
+carevl/  (root repo: DigitalVersion/carevl)
+├── edge/                    # Edge App (Station)
+│   ├── app/
+│   │   ├── api/            # FastAPI routes
+│   │   ├── core/           # Config, database
+│   │   ├── models/         # SQLAlchemy models
+│   │   ├── services/       # Business logic
+│   │   ├── templates/      # Jinja2 HTML
+│   │   └── static/         # CSS, JS
+│   ├── tests/              # Pytest for Edge
+│   ├── carevl.spec         # PyInstaller config
+│   ├── pyproject.toml      # Edge dependencies
+│   └── README.md
+│
+├── hub/                     # Hub App (Analytics)
+│   ├── carevl_hub/
+│   │   ├── cli.py          # Typer CLI commands
+│   │   ├── downloader.py   # GitHub API client (org-level PAT)
+│   │   ├── crypto.py       # Decrypt snapshots
+│   │   ├── aggregator.py   # DuckDB queries
+│   │   ├── reports.py      # Generate reports
+│   │   └── config.py       # Hub config
+│   ├── notebooks/          # Jupyter notebooks
+│   ├── tests/              # Pytest for Hub
+│   ├── pyproject.toml      # Hub dependencies
+│   └── README.md
+│
+├── shared/                  # Shared code between Edge & Hub
+│   ├── crypto.py           # Common encryption/decryption
+│   ├── models.py           # Common data models
+│   ├── constants.py        # Shared constants
+│   └── __init__.py
+│
+├── scripts/                 # Build & deployment scripts
+│   ├── build_edge.sh       # Build Edge .exe
+│   ├── build_hub.sh        # Package Hub CLI
+│   └── bootstrap.py        # One-liner setup
+│
+├── AGENTS/                  # Documentation (ADR)
+├── config/                  # Config files
+├── data/                    # Local data (Edge only)
+├── legacy/                  # Legacy Tkinter app
+├── .github/                 # CI/CD workflows
+│   └── workflows/
+│       ├── build-edge.yml  # Build Edge .exe
+│       └── test-hub.yml    # Test Hub CLI
+├── .gitignore
+├── README.md               # Root README
+└── TUTORIAL.md             # User guide
 
-Dependencies:
+```
+
+### Dependencies
+
+**Edge (`edge/pyproject.toml`):**
 - fastapi
 - sqlalchemy
 - cryptography
 - httpx (GitHub API)
 - jinja2
-```
+- uvicorn
 
-### CareVL Hub (`DigitalVersion/carevl-hub`)
-```
-carevl-hub/
-├── carevl_hub/
-│   ├── cli.py        # Typer CLI commands
-│   ├── downloader.py # GitHub API client
-│   ├── crypto.py     # Decrypt snapshots
-│   ├── aggregator.py # DuckDB queries
-│   ├── reports.py    # Generate reports
-│   └── config.py     # Hub config
-├── notebooks/        # Jupyter notebooks
-├── tests/            # Pytest
-└── pyproject.toml    # Dependencies
-
-Dependencies:
+**Hub (`hub/pyproject.toml`):**
 - typer
 - duckdb
 - pandas
-- httpx
+- httpx (GitHub API - org-level)
 - cryptography
 - openpyxl (Excel export)
 - streamlit (optional)
-```
+
+**Shared:**
+- cryptography (used by both)
+- pydantic (data validation)
 
 ## CLI Commands (Hub App)
 
 ```bash
 # Setup
-carevl-hub init --encryption-key "xxx"
+uv run carevl-hub init --encryption-key "xxx"
 
 # Download snapshots from all stations
-carevl-hub download --date 2026-04-28
+uv run carevl-hub download --date 2026-04-28
 
 # Decrypt all snapshots
-carevl-hub decrypt --input snapshots/ --output decrypted/
+uv run carevl-hub decrypt --input snapshots/ --output decrypted/
 
 # Aggregate data
-carevl-hub aggregate --output hub_report.parquet
+uv run carevl-hub aggregate --output hub_report.parquet
 
 # Generate Excel report
-carevl-hub report --format excel --output monthly_report.xlsx
+uv run carevl-hub report --format excel --output monthly_report.xlsx
 
 # Launch web dashboard
-carevl-hub dashboard --port 8080
+uv run carevl-hub dashboard --port 8080
 ```
 
 ## Development Workflow
@@ -197,110 +258,163 @@ carevl-hub dashboard --port 8080
 ### Edge App (Trạm)
 ```bash
 # Development
-cd carevl
+cd edge
 uv sync
 uv run uvicorn app.main:app --reload
 
 # Build .exe
-uv run pyinstaller carevl.spec
+cd ..
+uv run pyinstaller edge/carevl.spec
 
 # Test
+cd edge
 uv run pytest
 ```
 
 ### Hub App (Tỉnh)
 ```bash
 # Development
-cd carevl-hub
+cd hub
 uv sync
-uv run carevl-hub --help
+uv run python -m carevl_hub.cli --help
 
-# Install as package
+# Install as package (editable mode)
+cd hub
 uv pip install -e .
 
 # Test
 uv run pytest
 ```
 
+### Shared Code
+```bash
+# Import shared code in Edge
+from shared.crypto import encrypt_snapshot
+
+# Import shared code in Hub
+from shared.crypto import decrypt_snapshot
+```
+
 ## Deployment
 
 ### Edge App
-1. Build `carevl.exe` bằng PyInstaller
+1. Build `carevl.exe` bằng PyInstaller: `./scripts/build_edge.sh`
 2. Upload lên GitHub Releases của `DigitalVersion/carevl`
 3. Trạm download và chạy (hoặc dùng Bootstrap script)
 
 ### Hub App
-1. Publish package lên PyPI (optional) hoặc GitHub
-2. Admin Hub install: `pip install carevl-hub`
-3. Config encryption key và GitHub PAT
-4. Chạy CLI commands
+1. Package Hub CLI: `./scripts/build_hub.sh`
+2. Publish lên PyPI (optional): `cd hub && uv publish`
+3. Admin Hub install:
+   - Từ PyPI: `uv pip install carevl-hub`
+   - Từ source (dev mode): `cd hub && uv pip install -e .`
+4. Config encryption key và GitHub PAT (organization owner)
+5. Chạy CLI commands: `uv run carevl-hub download --date 2026-04-28`
 
 ## Security Separation
 
 | Aspect | Edge App | Hub App |
 |--------|----------|---------|
-| **GitHub Access** | 1 repo (Fine-grained PAT) | 100 repos (Classic PAT với repo scope) |
+| **GitHub Access** | 1 repo (Fine-grained PAT) | All org repos (Classic PAT - org owner) |
 | **Encryption Key** | Không có (chỉ encrypt) | Có (decrypt tất cả) |
 | **Data Access** | 1 trạm | Tất cả trạm |
-| **User Level** | Operator, Clinician | Admin, Analyst |
+| **User Level** | Operator, Clinician | Admin Hub, Analyst |
 | **Network** | Offline-first | Online-required |
+| **Location** | `edge/` folder | `hub/` folder |
 
 **Lợi ích:**
 - Edge app bị compromise → Chỉ mất 1 trạm
 - Hub app bị compromise → Mất tất cả (nhưng chỉ chạy trên máy Admin được bảo vệ)
+- Shared code giúp đồng bộ logic encryption/decryption
 
 ## Migration Path
 
-**Hiện tại:** Tất cả code trong 1 repo `DigitalVersion/carevl`
+**Hiện tại:** Tất cả code trong root của repo `DigitalVersion/carevl`
 
-**Bước 1:** Tách code Hub ra repo mới
+**Bước 1: Tạo cấu trúc monorepo**
 ```bash
-# Tạo repo mới
-gh repo create DigitalVersion/carevl-hub --private
+# Tạo folders
+mkdir -p edge hub shared scripts
 
-# Di chuyển code Hub
-mkdir carevl-hub
-mv scripts/hub_*.py carevl-hub/
-mv notebooks/ carevl-hub/
+# Di chuyển Edge code
+mv app edge/
+mv carevl.spec edge/
+mv pyproject.toml edge/
+
+# Tạo Hub structure
+mkdir -p hub/carevl_hub hub/notebooks hub/tests
+touch hub/carevl_hub/cli.py
+touch hub/pyproject.toml
+
+# Tạo Shared code
+touch shared/crypto.py shared/models.py shared/__init__.py
 ```
 
-**Bước 2:** Refactor Edge app
-- Xóa code Hub khỏi `carevl`
-- Giữ lại chỉ FastAPI + SQLite + HTMX
+**Bước 2: Extract shared code**
+```bash
+# Di chuyển crypto logic từ Edge sang Shared
+# app/services/crypto.py → shared/crypto.py
 
-**Bước 3:** Develop Hub app
-- Tạo CLI với Typer
-- Implement DuckDB aggregation
-- Add Jupyter notebooks
+# Update imports trong Edge
+# from app.services.crypto import encrypt → from shared.crypto import encrypt
+```
 
-**Bước 4:** Documentation
-- README riêng cho mỗi repo
-- TUTORIAL.md cho Edge (user cuối)
-- ADMIN_GUIDE.md cho Hub (admin)
+**Bước 3: Setup Hub app**
+```bash
+cd hub
+# Tạo CLI với Typer
+# Implement DuckDB aggregation
+# Add Jupyter notebooks
+```
+
+**Bước 4: Update CI/CD**
+```bash
+# .github/workflows/build-edge.yml
+# .github/workflows/test-hub.yml
+```
+
+**Bước 5: Documentation**
+```bash
+# edge/README.md - Hướng dẫn cho Operator
+# hub/README.md - Hướng dẫn cho Admin Hub
+# README.md (root) - Overview toàn bộ monorepo
+```
 
 ## Rationale
 
-### Tại sao tách?
+### Tại sao chọn Monorepo?
 
-1. **Separation of Concerns:**
-   - Edge: Transactional (OLTP) - Nhập liệu nhanh
-   - Hub: Analytical (OLAP) - Query phức tạp
+1. **Code Reuse:**
+   - Shared crypto logic (encrypt/decrypt)
+   - Common data models (Patient, Encounter)
+   - Không cần duplicate code
 
-2. **Different Tech Stacks:**
-   - Edge: Web UI (HTMX) - Dễ dùng cho operator
-   - Hub: CLI + Jupyter - Linh hoạt cho analyst
+2. **Synchronized Development:**
+   - Refactor cả Edge và Hub cùng lúc
+   - Version control đồng bộ
+   - Dễ test integration
 
-3. **Different Deployment:**
-   - Edge: .exe (không cần Python) - Dễ cài cho trạm
-   - Hub: Python package - Chuyên nghiệp cho admin
+3. **Simplified CI/CD:**
+   - 1 GitHub Actions workflow
+   - Build cả Edge .exe và Hub package
+   - Test cả 2 apps trong 1 pipeline
 
-4. **Maintainability:**
-   - 2 repos nhỏ dễ maintain hơn 1 repo khổng lồ
-   - Team có thể work parallel
+4. **Documentation Centralized:**
+   - AGENTS/ folder chứa tất cả ADR
+   - Dễ tìm kiếm và maintain
+   - Single source of truth
 
-5. **Security:**
-   - Edge không có encryption key
-   - Hub không chạy trên máy trạm
+5. **Team Collaboration:**
+   - Team nhỏ (1-3 người) dễ collaborate
+   - Không cần sync giữa 2 repos
+   - Pull request review cả 2 apps
+
+### Tại sao không tách 2 repos?
+
+- ❌ Duplicate shared code (crypto, models)
+- ❌ Khó đồng bộ version
+- ❌ CI/CD phức tạp hơn (2 repos, 2 workflows)
+- ✅ Monorepo với structure rõ ràng đủ tốt
 
 ### Tại sao không microservices?
 
@@ -309,6 +423,14 @@ mv notebooks/ carevl-hub/
 - ✅ Async via GitHub Releases đủ tốt
 - ✅ Đơn giản hơn, dễ deploy hơn
 
+### Khi nào nên tách repos?
+
+Chỉ tách khi:
+- Team lớn (>5 người)
+- Edge và Hub develop hoàn toàn độc lập
+- Cần release cycle khác nhau
+- Có nhiều conflicts về dependencies
+
 ## Related Documents
 - [01. FastAPI Core Architecture](01_FastAPI_Core.md) - Edge app
 - [15. Hub Aggregation: DuckDB Analytics Pipeline](15_Hub_Aggregation.md) - Hub app
@@ -316,10 +438,15 @@ mv notebooks/ carevl-hub/
 
 ## Next Steps
 
-- [ ] Tạo repo `DigitalVersion/carevl-hub`
-- [ ] Di chuyển Hub code sang repo mới
-- [ ] Viết CLI với Typer
+- [ ] Tạo cấu trúc monorepo (`edge/`, `hub/`, `shared/`)
+- [ ] Di chuyển Edge code vào `edge/` folder
+- [ ] Extract shared crypto logic vào `shared/`
+- [ ] Tạo Hub CLI với Typer trong `hub/`
 - [ ] Implement DuckDB aggregation
-- [ ] Viết ADMIN_GUIDE.md cho Hub
-- [ ] Vẽ sơ đồ riêng cho Hub app
+- [ ] Setup GitHub org-level PAT cho Hub
+- [ ] Viết `scripts/build_edge.sh` và `scripts/build_hub.sh`
+- [ ] Update CI/CD workflows
+- [ ] Viết `edge/README.md` và `hub/README.md`
+- [x] Vẽ sơ đồ Edge App architecture
+- [x] Vẽ sơ đồ Hub App architecture
 
