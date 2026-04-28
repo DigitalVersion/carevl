@@ -22,6 +22,51 @@ Hệ thống CareVL cần phương thức xác thực đơn giản cho trạm y 
 
 Sử dụng **GitHub Fine-grained Personal Access Token (PAT)** với Invite Code provisioning.
 
+### Quan trọng: 1 Repo = 1 Máy trạm (không phải 1 user)
+
+**Mô hình:**
+- Mỗi repo đại diện cho 1 máy tính tại trạm
+- Khi đổi máy: Dùng lại Invite Code cũ, chọn "Restore" để pull dữ liệu về
+- Không gắn với GitHub account cá nhân
+
+**Ví dụ:**
+- `station-001` repo → Máy tính số 1 tại Trạm Y Tế Xã Tân Hòa
+- Máy hỏng, mua máy mới → Cài lại app, nhập lại Invite Code, chọn "Restore"
+- Dữ liệu tự động pull về từ GitHub
+
+### Snapshot lưu ở đâu?
+
+**GitHub Releases** (giống phương án cũ, không thay đổi):
+- File snapshot: `FINAL_{SITE_ID}_YYYY-MM-DDTHH-mm-ss.db.enc`
+- Upload lên GitHub Releases của repo đó
+- Fine-grained PAT có quyền tạo Release (permission `Contents: write`)
+
+**Không commit vào code repo** vì:
+- File SQLite lớn (hàng MB), không phù hợp với Git
+- GitHub Releases là "file server" cho binary files
+- Tránh phình to Git history
+
+### DuckDB Hub Aggregation
+
+**Hub Admin workflow:**
+1. Dùng script Python để list tất cả releases từ 100 repos
+2. Download tất cả file `.db.enc` về local
+3. Decrypt bằng `ENCRYPTION_KEY`
+4. Import vào DuckDB để aggregate:
+   ```sql
+   -- DuckDB có thể query trực tiếp SQLite files
+   SELECT * FROM sqlite_scan('station-001.db', 'patients')
+   UNION ALL
+   SELECT * FROM sqlite_scan('station-002.db', 'patients')
+   ...
+   ```
+5. Tạo báo cáo tổng hợp
+
+**Lợi ích DuckDB:**
+- Query trực tiếp SQLite files (không cần import)
+- Analytical queries nhanh (OLAP)
+- Export sang Parquet, CSV cho BI tools
+
 ### Kiến trúc
 
 ```
@@ -98,11 +143,16 @@ for i in range(1, 101):
    - **Repository access**: `Only select repositories` → Chọn `station-001`
    - **Permissions**:
      - Repository permissions:
-       - `Contents`: Read and write
-       - `Metadata`: Read-only (mandatory)
+       - `Contents`: **Read and write** (cho git push/pull + create releases)
+       - `Metadata`: Read-only (mandatory, tự động chọn)
 3. Click `Generate token`
 4. Copy token: `github_pat_xxxxx...`
 5. Lưu vào CSV
+
+**Lưu ý:** Permission `Contents: write` bao gồm:
+- Git operations (clone, push, pull)
+- Create/update/delete releases
+- Upload release assets (snapshot files)
 
 **Script hỗ trợ (semi-automated):**
 ```python
@@ -352,6 +402,51 @@ def git_push_with_pat(station_id: str, repo_dir: str):
 - [01. FastAPI Core Architecture](01_FastAPI_Core.md)
 - [02. SQLite Security & Snapshots](02_SQLite_Security.md)
 - [07. Active Sync Protocol](07_active_sync_protocol.md)
+- [15. Hub Aggregation: DuckDB Analytics Pipeline](15_Hub_Aggregation.md)
+
+## Hub Aggregation với DuckDB
+
+**Workflow:**
+1. Hub Admin chạy script để download snapshots từ 100 repos
+2. Decrypt tất cả file `.db.enc` → `.db`
+3. DuckDB query trực tiếp:
+   ```python
+   import duckdb
+   
+   con = duckdb.connect()
+   
+   # Query across all station databases
+   result = con.execute("""
+       SELECT 
+           site_id,
+           COUNT(*) as total_patients,
+           COUNT(DISTINCT encounter_id) as total_encounters
+       FROM (
+           SELECT * FROM sqlite_scan('station-001.db', 'patients')
+           UNION ALL
+           SELECT * FROM sqlite_scan('station-002.db', 'patients')
+           -- ... repeat for 100 stations
+       )
+       GROUP BY site_id
+   """).fetchall()
+   ```
+
+4. Export kết quả:
+   ```python
+   # Export to Parquet for BI tools
+   con.execute("""
+       COPY (SELECT * FROM aggregated_data)
+       TO 'hub_report.parquet' (FORMAT PARQUET)
+   """)
+   ```
+
+**Lợi ích:**
+- Không cần import vào database trung tâm
+- Query trực tiếp từ SQLite files
+- Nhanh (DuckDB tối ưu cho analytical queries)
+- Dễ scale (thêm trạm chỉ cần thêm 1 dòng UNION ALL)
+
+Chi tiết xem: [15. Hub Aggregation](15_Hub_Aggregation.md)
 
 ## Migration from Device Flow
 
