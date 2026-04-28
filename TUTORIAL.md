@@ -52,6 +52,21 @@ Tạo 1 mã PIN 6 số. Mã này dùng để mở khóa hệ thống hàng ngày
 
 Hệ thống cung cấp một Menu (Sidebar) với 10 chức năng. Thanh menu này sẽ ẩn/hiện tự động trên màn hình điện thoại.
 
+### Tổng quan Luồng hoạt động (State Machine)
+
+Sơ đồ dưới đây minh họa toàn bộ luồng hoạt động của hệ thống CareVL, từ khởi tạo Gateway đến các thao tác hàng ngày theo từng Persona:
+
+![CareVL State Machine](AGENTS/ASSETS/state_machine_diagram.svg)
+
+**Giải thích:**
+- **Hàng trên (màu tím):** 5 bước Gateway Setup chỉ làm 1 lần khi cài đặt
+- **Persona A (màu vàng):** Tiếp nhận bệnh nhân, phát Sticker ID
+- **Persona B (màu xanh):** Bác sĩ khám và nhập sinh hiệu
+- **Persona C (màu hồng):** Nhập kết quả xét nghiệm trễ (Lab, X-ray)
+- **Persona D (màu tím nhạt):** Admin quản lý báo cáo, xuất dữ liệu
+
+---
+
 ### 1. Persona A: Tiếp nhận
 **Vai trò:** Người đứng ở quầy đón bệnh nhân, quét thẻ CCCD và phát mã vạch (Sticker).
 **Thao tác:** Chọn mục **1. Tiếp nhận mới** trên Sidebar.
