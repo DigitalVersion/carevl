@@ -38,6 +38,11 @@
 2. Tìm kiếm file `.md` tương ứng trong thư mục `AGENTS/FEATURES/` (ví dụ: `auth.md`, `sync.md`). Nếu chưa có, tạo mới.
 3. Cập nhật chi tiết nội dung: Trạng thái (Status), Các Endpoints liên quan, và Logic nghiệp vụ vừa thay đổi.
 
+**Đặc biệt với ảnh mockup:**
+- Nếu tạo/cập nhật ảnh trong `AGENTS/ASSETS/`, PHẢI tìm và sửa tất cả link tham chiếu trong các file `.md`
+- Dùng `git grep "tên_file_ảnh"` để tìm tất cả file cần cập nhật
+- Commit ảnh và link cùng lúc để tránh link bị vỡ
+
 ---
 
 ## 📚 Standard Operating Procedures (SOP) & Resources

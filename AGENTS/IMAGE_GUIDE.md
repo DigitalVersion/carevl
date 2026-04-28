@@ -44,7 +44,7 @@ def run(playwright):
 
     # Chụp màn hình trang Login / GitHub Auth
     page.goto("http://localhost:8000/login")
-    page.screenshot(path="AGENTS/ASSETS/01_github_auth.png")
+    page.screenshot(path="AGENTS/ASSETS/01_mockup_github_auth.png")
 
     # ... Chụp các màn hình khác ...
 
@@ -53,6 +53,41 @@ def run(playwright):
 with sync_playwright() as playwright:
     run(playwright)
 ```
+
+## Quy trình tạo ảnh (BẮT BUỘC)
+
+**Khi tạo/cập nhật ảnh mockup, PHẢI làm theo thứ tự:**
+
+1. **Chụp ảnh bằng Playwright**
+   - Viết script hoặc chạy script có sẵn
+   - Lưu vào `AGENTS/ASSETS/` với tên file rõ ràng (VD: `01_mockup_github_auth.png`)
+
+2. **Cập nhật link trong tài liệu NGAY LẬP TỨC**
+   - Tìm tất cả file `.md` có tham chiếu đến ảnh cũ
+   - Sửa link cho đúng tên file mới
+   - Kiểm tra bằng: `git grep "tên_file_ảnh_cũ"`
+
+3. **Xác minh link hoạt động**
+   - Mở file markdown trong preview mode
+   - Đảm bảo ảnh hiển thị đúng
+
+**Ví dụ workflow:**
+```bash
+# 1. Chụp ảnh
+uv run python scripts/take_screenshots.py
+
+# 2. Kiểm tra file nào cần cập nhật link
+git grep "01_github_auth.png"
+
+# 3. Sửa link trong các file tìm được
+# TUTORIAL.md: ![GitHub Auth](AGENTS/ASSETS/01_mockup_github_auth.png)
+
+# 4. Commit cả ảnh và link cùng lúc
+git add AGENTS/ASSETS/*.png TUTORIAL.md
+git commit -m "feat: Update GitHub auth mockup and fix links"
+```
+
+**LƯU Ý:** Nếu đổi tên file ảnh, PHẢI tìm và sửa tất cả link tham chiếu. Không để link bị vỡ!
 
 ## Danh Sách Ảnh Cần Chụp
 Tham khảo mục `Danh sách ảnh Mockup` trong từng file `.md` tại `AGENTS/FEATURES/`.
