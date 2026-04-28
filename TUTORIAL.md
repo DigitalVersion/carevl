@@ -14,36 +14,42 @@ Hệ thống CareVL được thiết kế để cài đặt "Zero-Config" trên 
 
 ---
 
-## PHẦN 1: KÍCH HOẠT HỆ THỐNG LẦN ĐẦU (THE GATEWAY)
+## PHẦN 1: KÍCH HOẠT HỆ THỐNG LẦN ĐẦU (GATEWAY SETUP)
 
-Khi ứng dụng mới được cài đặt, bạn cần thực hiện 5 bước thiết lập ban đầu để sử dụng vĩnh viễn (bao gồm cả khi mất mạng internet).
+Khi ứng dụng mới được cài đặt, bạn cần thực hiện 4 bước thiết lập ban đầu để sử dụng vĩnh viễn (bao gồm cả khi mất mạng internet).
 
-### Bước 1: Xác thực GitHub (Thiết bị)
-Hệ thống sử dụng GitHub để đồng bộ và phân quyền.
-1. Dùng điện thoại mở trang `github.com/login/device`.
-2. Đăng nhập tài khoản GitHub cá nhân của bạn.
-3. Nhập mã code hiển thị trên màn hình máy tính vào điện thoại.
-![GitHub Auth](AGENTS/ASSETS/01_mockup_github_auth.png)
+### Bước 1: Nhập Invite Code
+Hub Admin sẽ gửi cho bạn một **Invite Code** qua Zalo hoặc Email. Code này chứa tất cả thông tin cần thiết để kết nối với hệ thống.
 
-### Bước 2: Cấu hình Repository
-Nhập đường dẫn kho dữ liệu (Repository) mà Hub/Trung tâm đã tạo cho bạn (VD: `DigitalVersion/carevl-data`).
-![Repo Config](AGENTS/ASSETS/02_mockup_repo_config.png)
+**Thao tác:**
+1. Copy Invite Code từ tin nhắn Zalo/Email
+2. Paste vào ô input trên màn hình
+3. Click "Xác nhận"
 
-### Bước 3: Cấp quyền Ghi (Dành cho Trưởng trạm)
-Nếu tài khoản của bạn chưa được cấp quyền Ghi (Write) vào Repository trên:
-1. Màn hình sẽ hiện cảnh báo **Chưa Có Quyền Ghi!**.
-2. Đưa **Mã QR** trên màn hình cho Trưởng trạm hoặc Admin Hub quét để mời bạn tham gia nhóm làm việc.
-3. Chấp nhận lời mời qua email, sau đó bấm nút "Tôi đã được cấp quyền".
-![Permission Gate](AGENTS/ASSETS/03_mockup_permission_gate.png)
+**Invite Code trông như thế nào:**
+```
+eyJzdGF0aW9uX2lkIjogInN0YXRpb24tMDAxIiwgInN0YXRpb25fbmFtZSI6ICJUcuG6oW0gWSBU4bq/IDAwMSIsICJyZXBvX3VybCI6ICJodHRwczovL2dpdGh1Yi5jb20vY2FyZXZsLWJvdC9zdGF0aW9uLTAwMS5naXQiLCAicGF0IjogImdpdGh1Yl9wYXRfMTFBQUFBLi4uIn0=
+```
 
-### Bước 4: Khởi tạo Dữ liệu (Khu vực Cài đặt Nguy hiểm)
+![Invite Code Input](AGENTS/ASSETS/01_mockup_github_auth.png)
+
+### Bước 2: Xác nhận tên trạm
+Hệ thống sẽ tự động điền tên trạm từ Invite Code. Bạn chỉ cần kiểm tra và xác nhận.
+
+**Ví dụ:** "Trạm Y Tế 001" hoặc "Trạm Y Tế Xã Tân Hòa"
+
+![Station Name Confirmation](AGENTS/ASSETS/02_mockup_repo_config.png)
+
+### Bước 3: Khởi tạo Dữ liệu
 Bạn có 2 lựa chọn:
 *   **Tạo DB Trống:** Dành cho trạm mới hoàn toàn, chưa từng khám ai.
-*   **Khôi phục Snapshot từ Hub:** Dùng khi cài lại máy. Bạn cần xin "Encryption Key" từ Hub để giải mã file dự phòng.
+*   **Khôi phục Snapshot từ Hub:** Dùng khi cài lại máy. Hệ thống sẽ tự động tải dữ liệu cũ về từ GitHub.
+
 ![Data Setup](AGENTS/ASSETS/04_mockup_data_setup_restore.png)
 
-### Bước 5: Thiết lập Mã PIN (Đăng nhập Offline)
-Tạo 1 mã PIN 6 số. Mã này dùng để mở khóa hệ thống hàng ngày mà không cần mạng Internet. **Tuyệt đối không quên mã PIN này.** Token truy cập sẽ được mã hoá bằng mã PIN của bạn.
+### Bước 4: Thiết lập Mã PIN (Đăng nhập Offline)
+Tạo 1 mã PIN 6 số. Mã này dùng để mở khóa hệ thống hàng ngày mà không cần mạng Internet. **Tuyệt đối không quên mã PIN này.**
+
 ![PIN Setup](AGENTS/ASSETS/05_mockup_pin_setup.png)
 
 ---
@@ -59,7 +65,8 @@ Sơ đồ dưới đây minh họa toàn bộ luồng hoạt động của hệ 
 ![CareVL State Machine](AGENTS/ASSETS/state_machine_diagram.svg)
 
 **Giải thích:**
-- **Hàng trên (màu tím):** 5 bước Gateway Setup chỉ làm 1 lần khi cài đặt
+- **Hàng trên (màu vàng):** Hub Admin chuẩn bị 1 lần (tạo repos, generate PATs, gửi invite codes)
+- **Hàng giữa (màu xanh):** Trạm cài đặt 4 bước (nhập code, confirm tên, new/restore, PIN)
 - **Persona A (màu vàng):** Tiếp nhận bệnh nhân, phát Sticker ID
 - **Persona B (màu xanh):** Bác sĩ khám và nhập sinh hiệu
 - **Persona C (màu hồng):** Nhập kết quả xét nghiệm trễ (Lab, X-ray)

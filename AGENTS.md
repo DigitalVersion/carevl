@@ -67,6 +67,7 @@ Các quyết định hiện tại của hệ thống.
 - [14. Bootstrap Infrastructure: One-Liner Setup](AGENTS/ACTIVE/14_Bootstrap_Infrastructure.md)
 - [15. Hub Aggregation: DuckDB Analytics Pipeline](AGENTS/ACTIVE/15_Hub_Aggregation.md)
 - [16. Testing Guidelines](AGENTS/ACTIVE/16_Testing_Guidelines.md)
+- [17. Invite Code Authentication: Fine-grained PAT Provisioning](AGENTS/ACTIVE/17_Invite_Code_Authentication.md)
 
 ---
 
@@ -92,6 +93,7 @@ Các quyết định đã bị thay thế hoặc bỏ đi, được lưu lại �
 
 - [05. Legacy CustomTkinter App](AGENTS/ARCHIVE/05_Legacy_Tkinter_App.md)
 - [06. Legacy OMR Pipeline](AGENTS/ARCHIVE/06_Legacy_OMR_Pipeline.md)
+- [17. GitHub Device Flow Authentication (Deprecated)](AGENTS/ARCHIVE/17_GitHub_Device_Flow.md) - Thay thế bởi Invite Code Authentication
 
 ---
 

@@ -1,9 +1,24 @@
-# Feature: Gateway Authentication
+# Feature: Gateway Authentication (DEPRECATED)
 
 ## Trạng thái (Status)
-- [x] Đã triển khai (Deployed)
+- [ ] Đã triển khai (Deployed)
 - [ ] Đang phát triển (In Progress)
-- [ ] Đã loại bỏ (Deprecated)
+- [x] Đã loại bỏ (Deprecated)
+
+**Deprecated Date**: 2026-04-28  
+**Replaced By**: [17. Invite Code Authentication](../ACTIVE/17_Invite_Code_Authentication.md)
+
+## Lý do Deprecated
+
+Phương thức Device Flow (5 bước) quá phức tạp cho người dùng cuối và không phù hợp với constraint "không có server backend".
+
+Đã thay thế bằng **Invite Code Authentication** sử dụng Fine-grained PAT:
+- Đơn giản hơn: 4 bước thay vì 5 bước
+- Không cần GitHub account cá nhân
+- Không cần quét QR, nhập device code
+- Chỉ cần paste invite code
+
+Xem chi tiết tại: [ARCHIVE/17_GitHub_Device_Flow.md](../ARCHIVE/17_GitHub_Device_Flow.md)
 
 ## Mô tả Nghiệp vụ (Business Logic)
 Quy trình 5 bước để kích hoạt máy trạm (Gateway) lần đầu:
