@@ -1,11 +1,33 @@
-# Hướng Dẫn Hình Ảnh Mockup (Image Guide)
+# Hướng Dẫn Hình Ảnh & Diagram (Image Guide)
 
-Tài liệu này quy định cách thức tạo và lưu trữ hình ảnh giao diện (Mockup) cho hệ thống CareVL.
+Tài liệu này quy định cách thức tạo và lưu trữ hình ảnh cho hệ thống CareVL.
 
 ## Quy Định Cốt Lõi
-1. **Tuyệt đối không dùng AI để tạo ảnh Mockup.** Mọi hình ảnh (đặc biệt trong thư mục `AGENTS/ASSETS/` và dùng trong `TUTORIAL.md`) phải là ảnh chụp thực tế từ giao diện UI của ứng dụng.
-2. **Công cụ duy nhất:** Phải sử dụng **Playwright** để viết script tự động truy cập vào các trang (routes), điều chỉnh kích thước màn hình (Desktop/Mobile) và chụp ảnh (Screenshots).
-3. **Định dạng:** Ảnh phải được lưu dưới định dạng `.png` với chất lượng cao.
+
+### 1. Nơi lưu trữ
+**TẤT CẢ hình ảnh và diagram phải lưu trong `AGENTS/ASSETS/`**
+- ❌ Sai: `docs/diagram.svg`, `images/mockup.png`, `assets/icon.svg`
+- ✅ Đúng: `AGENTS/ASSETS/diagram.svg`, `AGENTS/ASSETS/mockup.png`
+
+### 2. Phân loại hình ảnh
+
+#### A. Mockup UI (Ảnh chụp giao diện thực tế)
+- **Quy tắc:** Tuyệt đối không dùng AI để tạo ảnh Mockup
+- **Công cụ duy nhất:** Phải sử dụng **Playwright** để chụp ảnh từ giao diện thực tế
+- **Định dạng:** `.png` với chất lượng cao
+- **Mục đích:** Dùng trong `TUTORIAL.md`, tài liệu hướng dẫn người dùng
+
+#### B. Diagram kỹ thuật (Sơ đồ kiến trúc, state machine, flowchart)
+- **Công cụ cho phép:** 
+  - SVG inline (code trực tiếp)
+  - Draw.io / Excalidraw (export SVG)
+  - Mermaid (nếu cần)
+- **Định dạng:** `.svg` (ưu tiên) hoặc `.png`
+- **Mục đích:** Minh họa kiến trúc, luồng dữ liệu, state machine trong tài liệu kỹ thuật
+
+### 3. Quy tắc đặt tên
+- Mockup UI: `01_feature_name.png`, `02_screen_name.png`
+- Diagram: `feature_name_diagram.svg`, `state_machine_diagram.svg`
 
 ## Script Chụp Ảnh Mẫu (Playwright Python)
 Dưới đây là một ví dụ script `scripts/take_screenshots.py` để chụp ảnh màn hình các trang giao diện (chỉ chạy khi server đã hoạt động ở `http://localhost:8000`).
@@ -35,3 +57,28 @@ with sync_playwright() as playwright:
 ## Danh Sách Ảnh Cần Chụp
 Tham khảo mục `Danh sách ảnh Mockup` trong từng file `.md` tại `AGENTS/FEATURES/`.
 Mỗi tính năng mới khi hoàn thành UI đều phải được cập nhật ảnh bằng Playwright.
+
+## Ví dụ Diagram SVG
+Khi cần tạo diagram kỹ thuật (state machine, flowchart), có thể code trực tiếp SVG:
+
+```svg
+<svg width="400" height="200" xmlns="http://www.w3.org/2000/svg">
+  <!-- State 1 -->
+  <rect x="10" y="50" width="100" height="60" fill="#3b82f6" rx="5"/>
+  <text x="60" y="85" text-anchor="middle" fill="white">State 1</text>
+  
+  <!-- Arrow -->
+  <line x1="110" y1="80" x2="170" y2="80" stroke="#64748b" stroke-width="2"/>
+  
+  <!-- State 2 -->
+  <rect x="170" y="50" width="100" height="60" fill="#10b981" rx="5"/>
+  <text x="220" y="85" text-anchor="middle" fill="white">State 2</text>
+</svg>
+```
+
+Lưu file SVG vào `AGENTS/ASSETS/feature_name_diagram.svg`
+
+## Lưu ý quan trọng
+- **KHÔNG tạo thư mục `docs/`, `images/`, `assets/` riêng**
+- **TẤT CẢ phải vào `AGENTS/ASSETS/`**
+- Nếu cần tham chiếu ảnh trong markdown: `![Description](AGENTS/ASSETS/filename.png)`

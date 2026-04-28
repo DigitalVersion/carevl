@@ -8,11 +8,11 @@
    - `AGENTS/ACTIVE/`: Tài liệu về kiến trúc, quyết định kỹ thuật đang áp dụng
    - `AGENTS/FEATURES/`: Tài liệu về các tính năng nghiệp vụ
    - `AGENTS/ARCHIVE/`: Tài liệu về kiến trúc/tính năng đã bỏ (để giải thích "tại sao không dùng")
-   - `AGENTS/ASSETS/`: Hình ảnh, mockup, screenshot
+   - `AGENTS/ASSETS/`: **TẤT CẢ** hình ảnh, mockup, diagram, SVG
 
-2. **KHÔNG được tạo file `.md` tùy tiện ở ngoài thư mục `AGENTS/`**
-   - ❌ Sai: `scripts/README.md`, `docs/guide.md`, `SETUP.md`
-   - ✅ Đúng: `AGENTS/ACTIVE/16_Setup_Guide.md`
+2. **KHÔNG được tạo file `.md` hoặc thư mục hình ảnh tùy tiện**
+   - ❌ Sai: `scripts/README.md`, `docs/guide.md`, `SETUP.md`, `images/`, `assets/`
+   - ✅ Đúng: `AGENTS/ACTIVE/16_Setup_Guide.md`, `AGENTS/ASSETS/diagram.svg`
 
 3. **Mọi tài liệu mới phải được link từ `AGENTS.md`**
    - Thêm vào section `ACTIVE`, `FEATURES`, hoặc `ARCHIVE` tương ứng
