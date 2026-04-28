@@ -118,10 +118,10 @@
     <text x="670" y="565" text-anchor="middle" fill="white" font-size="11">• Link về Encounter</text>
   </g>
 
-  <!-- Persona D: Admin/Reports (Right side) -->
+  <!-- Persona D: Trưởng trạm/Reports (Right side) -->
   <g id="persona-d">
     <rect x="870" y="250" width="280" height="400" fill="#f3e8ff" stroke="#a855f7" stroke-width="2" rx="8"/>
-    <text x="890" y="275" font-size="14" font-weight="bold" fill="#6b21a8">Persona D: Admin/Reports</text>
+    <text x="890" y="275" font-size="14" font-weight="bold" fill="#6b21a8">Persona D: Trưởng trạm</text>
     
     <!-- State 4: Aggregate -->
     <rect x="890" y="290" width="240" height="50" fill="#a855f7" stroke="#9333ea" stroke-width="2" rx="5" filter="url(#shadow)"/>
@@ -168,7 +168,7 @@
     <text x="635" y="737" font-size="11" fill="#475569">Persona C: Nhập liệu</text>
     
     <rect x="790" y="725" width="15" height="15" fill="#a855f7" stroke="#9333ea" stroke-width="1"/>
-    <text x="815" y="737" font-size="11" fill="#475569">Persona D: Admin/Reports</text>
+    <text x="815" y="737" font-size="11" fill="#475569">Persona D: Trưởng trạm</text>
     
     <line x1="70" y1="755" x2="100" y2="755" stroke="#64748b" stroke-width="2" marker-end="url(#arrowhead)"/>
     <text x="110" y="760" font-size="11" fill="#475569">Luồng chính</text>
