@@ -189,6 +189,8 @@ stateDiagram-v2
 - `GUARD`: Dieu kien bat buoc de transition duoc phep xay ra.
 - `SE`: Side Effects (ghi DB, goi API, upload, decrypt, aggregate...).
 
+**Note ve Mermaid (GitHub render):** Mermaid tren GitHub thuong khong tu wrap va se cat label khi do dai; hay rut ngan node label va dung `\\n` de split dong (muc tieu <20-25 ky tu/line).
+
 ---
 
 ### 1. Persona A: Tiếp nhận

@@ -52,6 +52,18 @@ Dung `stateDiagram-v2` va annotate contracts ngay tren transition.
 - `TD` la 1 dong text gom: `IN`, `OUT`, `GUARD`, `SE`
 - Tranh dung `{}`, `:`, hoac ky tu dac biet trong label transition.
 
+### GitHub Mermaid label wrapping (canh cat do do)
+Mermaid tren GitHub thuong **khong tu wrap** va se **cat/bi mat label** khi do dai label qua dai.
+- Nguong thuc te: khoang **20-25 ky tu** bat dau bi cat.
+- Cach lam (rat quan trong):
+  1) **Rut ngan node label** xuong **<20-25 ky tu tren moi dong**.
+  2) Neu can nhieu y, **tu them `\\n`** trong label de tao dong moi (vi du: `"[Line1\\nLine2]"`).
+  3) Khong can tu dem tay; chi can lam label ngan, ro, va split thanh 2-3 dong bang `\\n`.
+  
+Gioi han nay ap dung cho:
+- `flowchart TD/LR` node text: text trong `[...]`
+- `stateDiagram-v2` transition nhan sau `:` va/hoac text label trong node.
+
 ```mermaid
 stateDiagram-v2
     [*] --> Idle
