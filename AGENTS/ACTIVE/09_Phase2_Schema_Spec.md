@@ -6,7 +6,7 @@
 ## Context
 Phase 2 dua CareVL tu du lieu phang sang mo hinh y khoa FHIR-aligned tren SQLite. Muc tieu la van hanh nhe tai tram, tach thuc the ro rang, va giu duong ra FHIR, DuckDB, va tang phan tich Hub.
 
-**Pham vi thu thap theo nguoi (truoc SQL):** bang y nghia nghiep vu, doi tuong, module khao sat — xem [27. Business Data Intake Scope](27_Business_Data_Intake_Scope.md). File 09 la **Lop ky thuat** sau khi Lop 27 duoc dong y hoac ghi ro pham vi.
+**Phạm vi thu thập theo người (trước SQL):** bảng ý nghĩa nghiệp vụ, đối tượng, mô-đun khảo sát — xem [27. Phạm vi thu thập dữ liệu nghiệp vụ](27_Business_Data_Intake_Scope.md). Tài liệu 09 là **lớp kỹ thuật** sau khi lớp 27 được đồng ý hoặc ghi rõ phạm vi.
 
 Khong nam trong phase nay:
 - Khong dung full FHIR JSON lam runtime chinh
@@ -123,7 +123,7 @@ Quyet dinh chot:
 Schema nay giu UI Edge van nhe, nhung du lieu ben duoi sach hon, de query hon, va de day sang Hub de tong hop. Tach bang theo y nghia y khoa giup bao cao, audit, migrate, va lien thong sau nay de di dung huong FHIR. Dinh danh nghiep vu (CCCD, VNeID, BHYT) la nguon cho ca **bao cao tong hop** va **lien thong batch** o Hub (buoc 10 vs 11 trong `overview_end_to_end.svg`); khong dong nhat “co VNeID trong schema” voi “chi co mot kenh xuat”.
 
 ## Related Documents
-- [27. Business Data Intake Scope (nguoi nghiep vu truoc, ky thuat sau)](27_Business_Data_Intake_Scope.md)
+- [27. Phạm vi thu thập dữ liệu nghiệp vụ (người trước, kỹ thuật sau)](27_Business_Data_Intake_Scope.md)
 - [07. Active Sync Protocol: The Encrypted SQLite Blob](07_active_sync_protocol.md)
 - [15. Hub Aggregation: DuckDB Analytics Pipeline](15_Hub_Aggregation.md)
 - [18. Two-App Architecture: Edge vs Hub](18_Two_App_Architecture.md)

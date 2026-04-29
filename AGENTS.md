@@ -83,7 +83,7 @@ O buoc finalize, truoc `submit`, agent phai lam:
 - [24. Verified State Machine Diagramming](AGENTS/ACTIVE/24_Verified_State_Machine_Diagramming.md)
 
 ## START HERE - DOMAIN DATA (NGUOI TRUOC, MAY SAU)
-- [27. Business Data Intake Scope](AGENTS/ACTIVE/27_Business_Data_Intake_Scope.md) — pham vi thu thap + doi tuong/module; doi chieu truoc [09. Phase 2 Schema](AGENTS/ACTIVE/09_Phase2_Schema_Spec.md)
+- [27. Phạm vi thu thập dữ liệu nghiệp vụ](AGENTS/ACTIVE/27_Business_Data_Intake_Scope.md) — phạm vi thu thập, đối tượng, mô-đun; đối chiếu trước [09. Phase 2 Schema](AGENTS/ACTIVE/09_Phase2_Schema_Spec.md)
 
 ---
 
@@ -115,7 +115,7 @@ Quyet dinh dang song cua he thong.
 - [23. Authentication Testing Guide](AGENTS/ACTIVE/23_Auth_Testing_Guide.md)
 - [24. Verified State Machine Diagramming](AGENTS/ACTIVE/24_Verified_State_Machine_Diagramming.md)
 - [26. Visualization Catalog: SVG, Mermaid & Tables](AGENTS/ACTIVE/26_Visualization.md)
-- [27. Business Data Intake Scope (nguoi nghiep vu truoc, ky thuat sau)](AGENTS/ACTIVE/27_Business_Data_Intake_Scope.md)
+- [27. Phạm vi thu thập dữ liệu nghiệp vụ (người trước, kỹ thuật sau)](AGENTS/ACTIVE/27_Business_Data_Intake_Scope.md)
 
 ---
 
