@@ -138,63 +138,56 @@ Hệ thống cung cấp một Menu (Sidebar) với 10 chức năng. Thanh menu n
 
 ### Tổng quan Luồng hoạt động
 
-Hệ thống CareVL hoạt động theo 3 bước chính:
-
-#### **Bước 1: Chuẩn bị Hệ thống**
-Hub Admin chuẩn bị (1 lần) + Trạm cài đặt (4 bước)
+Muc tieu cua so do nay la mo ta **what should happen end-to-end** tu luc khoi tao tram den luc Hub co bao cao tong hop.
+Gap analysis se lam o buoc review/kiem thu sau.
 
 ```mermaid
 flowchart TD
-    A[Hub Admin: Create station repo + PAT + Invite Code] --> B[Station: Install Edge App]
-    B --> C[Enter Invite Code]
-    C --> D[Confirm Station]
-    D --> E{Initialize Data}
-    E -->|New DB| F[Initialize new SQLite]
-    E -->|Restore Snapshot| G[Pull Snapshot from GitHub]
-    F --> H[Setup PIN]
-    G --> H
-    H --> I[System Ready]
+    A[Hub Admin provisions Station repo and Invite Code] --> B[Station installs Edge App]
+    B --> C[Station completes Gateway Setup]
+    C --> D{Setup mode}
+    D -->|New DB| E[Initialize empty Station SQLite]
+    D -->|Restore Snapshot| F[Restore latest Snapshot]
+    E --> G[Station sets offline PIN and enters Ready state]
+    F --> G
+
+    G --> H[Daily operations by personas via Sidebar]
+    H --> I[Intake and Queue]
+    I --> J[Clinical recording and results update]
+    J --> K[Reports and local audit checks]
+
+    K --> L[Station creates encrypted Snapshot]
+    L --> M[Station uploads Snapshot to GitHub Releases]
+    M --> N[Hub downloads Snapshots from Stations]
+    N --> O[Hub decrypts and validates Snapshots]
+    O --> P[Hub aggregates data in DuckDB]
+    P --> Q[Hub generates provincial reports]
 ```
 
-#### **Bước 2: Sử dụng Hàng ngày**
-4 Personas với 10 chức năng Sidebar
-
-```mermaid
-flowchart TD
-    A[Persona A: Intake] --> B[2. Queue]
-    B --> C[Persona B: Patient Record]
-    C --> D[Persona C: 4. Aggregate Input]
-    C --> E[Persona C: 5. Results Update]
-    D --> F[Persona D: 6. Reports]
-    E --> F
-    F --> G[7. Export to Hub]
-    G --> H[8. Audit]
-    H --> I[9. Station Settings]
-    I --> J[10. About]
-```
-
-#### **Bước 3: Xuất Dữ liệu & Tổng hợp**
-Edge App → GitHub → Hub App (Two-App Architecture)
+### V2 (Verified) - State Machine de debug
 
 ```mermaid
 stateDiagram-v2
-    [*] --> EdgeDataReady
-    EdgeDataReady --> SnapshotCreated: createSnapshot()\n[TD IN stationDbPath encryptionKeyRef | OUT snapshotFile checksum createdAt | GUARD db_readable | SE encrypt_sqlite_to_db_enc]
-    SnapshotCreated --> SnapshotUploaded: uploadSnapshot()\n[TD IN snapshotFile repoUrl patRef | OUT releaseTag assetUrl | GUARD github_auth_success | SE upload_to_github_releases]
-    SnapshotUploaded --> HubDownload: pullForHub()\n[TD IN releaseTag stationRepoList | OUT snapshotBundle | SE hub_cli_download]
-    HubDownload --> HubDecrypt: decryptSnapshot()\n[TD IN snapshotBundle hubKeyRef | OUT decryptedDbSet | GUARD checksum_valid | SE decrypt_db_enc]
-    HubDecrypt --> HubAggregate: aggregate()\n[TD IN decryptedDbSet | OUT aggregatedTables qualityReport | SE duckdb_queries]
-    HubAggregate --> HubReports: generateReports()\n[TD OUT excel pdf parquet]
-    HubReports --> [*]
+    [*] --> ProvisionedByHub
+    ProvisionedByHub --> InstalledAtStation: installEdge()\n[TD IN installer_package inviteCode | OUT station_runtime_ready | GUARD package_valid | SE install_and_boot]
+    InstalledAtStation --> GatewayReady: completeGatewaySetup()\n[TD IN inviteCode setupMode pin6 | OUT stationConfig authReady | GUARD invite_and_pin_valid | SE store_credentials_and_pin]
+    GatewayReady --> DailyOps: startDailyOps()\n[TD OUT activeSession]
+    DailyOps --> ClinicalDataReady: runIntakeQueueClinical()\n[TD IN patientEvents observations delayedResults | OUT localClinicalDataset | SE write_station_sqlite]
+    ClinicalDataReady --> SnapshotReady: createSnapshot()\n[TD IN stationDbPath encryptionKeyRef | OUT snapshotFile checksum | GUARD db_readable | SE encrypt_sqlite_to_db_enc]
+    SnapshotReady --> SnapshotPublished: uploadSnapshot()\n[TD IN snapshotFile repoUrl patRef | OUT releaseTag assetUrl | GUARD github_auth_success | SE upload_to_github_releases]
+    SnapshotPublished --> HubIngested: hubDownload()\n[TD IN releaseTag stationRepoList | OUT snapshotBundle | SE hub_cli_download]
+    HubIngested --> HubValidated: decryptAndValidate()\n[TD IN snapshotBundle hubKeyRef | OUT decryptedDbSet qualityFlags | GUARD checksum_valid | SE decrypt_db_enc]
+    HubValidated --> HubAggregated: aggregateDuckDB()\n[TD IN decryptedDbSet | OUT aggregateTables aggregateMetrics | SE duckdb_queries]
+    HubAggregated --> ReportsGenerated: generateReports()\n[TD OUT provincialReports]
+    ReportsGenerated --> [*]
 ```
 
-**Acceptance Criteria Mapping (Data Export & Hub Aggregation)**
-- **AC1:** Edge chi tao duoc Snapshot khi database doc duoc (`EdgeDataReady` -> `SnapshotCreated`).
-- **AC2:** Snapshot upload len GitHub Releases chi xay ra khi auth GitHub thanh cong (`SnapshotCreated` -> `SnapshotUploaded`).
-- **AC3:** Hub chi duoc download theo release tag/repo list hop le, tao `snapshotBundle` day du (`SnapshotUploaded` -> `HubDownload`).
-- **AC4:** Hub chi decrypt khi checksum hop le; Snapshot loi checksum phai bi chan truoc aggregate (`HubDownload` -> `HubDecrypt` guard).
-- **AC5:** Bao cao tong hop (`HubReports`) chi duoc sinh sau buoc aggregate DuckDB thanh cong (`HubDecrypt` -> `HubAggregate` -> `HubReports`).
-- **AC6:** Output cuoi cung phai co it nhat mot dinh dang bao cao (`excel`/`pdf`/`parquet`) de xem la ket thuc flow hop le.
+**Chu thich ky hieu (Legend)**
+- `TD`: Transition Details (mo ta ky thuat cua moi mui ten chuyen trang thai).
+- `IN`: Du lieu dau vao can cho transition.
+- `OUT`: Du lieu dau ra/artefact tao ra sau transition.
+- `GUARD`: Dieu kien bat buoc de transition duoc phep xay ra.
+- `SE`: Side Effects (ghi DB, goi API, upload, decrypt, aggregate...).
 
 ---
 
