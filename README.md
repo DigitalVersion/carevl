@@ -2,21 +2,34 @@
 
 CareVL là hệ thống Hồ sơ Sức khỏe Điện tử (EHR) được tối ưu hóa đặc biệt cho các trạm y tế và đoàn khám lưu động, với khả năng hoạt động offline (không cần internet) và tự động đồng bộ hóa dữ liệu (Active Sync).
 
-## Cài Đặt "Một Dòng Lệnh" (Zero-Config) cho Windows
+## Luồng nghiệp vụ tổng quan (end-to-end)
 
-Hệ thống cung cấp một script duy nhất để tự động cài đặt Git, cấu hình môi trường, tải mã nguồn, mở khóa tường lửa (Firewall) và tạo lối tắt (Shortcut) ra màn hình Desktop.
+Sơ đồ dưới mô tả chuỗi từ cấp phép Hub → trạm → vận hành → snapshot → Hub → báo cáo / liên thông (chi tiết số bước trong tài liệu nội bộ).
 
-**Yêu cầu:** Hãy mở **PowerShell** bằng quyền Quản trị viên (**Run as Administrator**) và dán 1 trong 2 dòng lệnh dưới đây tùy theo nhu cầu của trạm.
+![CareVL — luồng nghiệp vụ end-to-end](AGENTS/ASSETS/overview_end_to_end.svg)
 
-### 1. Bản Chính thức (Stable - Khuyên dùng)
-Dành cho công việc hàng ngày tại trạm. Đảm bảo tính ổn định cao nhất.
+*Tài liệu kèm sơ đồ, Mermaid và bảng: [26. Visualization Catalog](AGENTS/ACTIVE/26_Visualization.md). Phạm vi thu thập dữ liệu (nghiệp vụ): [27. Phạm vi thu thập dữ liệu nghiệp vụ](AGENTS/ACTIVE/27_Business_Data_Intake_Scope.md).*
+
+---
+
+## Cài đặt Windows — một lệnh (chọn nhánh `main` hoặc `canary`)
+
+Cùng một script cài đặt; chỉ **khác URL** theo nhánh Git bạn muốn dùng:
+
+| Nhánh | Khi nào dùng |
+|-------|----------------|
+| **`main`** | Bản **ổn định**, khuyên dùng cho vận hành hàng ngày tại trạm. |
+| **`canary`** | Bản **thử nghiệm** — tính năng Gateway, xác thực và bảo mật offline (PIN) mới hơn; có thể thay đổi nhanh. |
+
+**Yêu cầu:** mở **PowerShell** bằng quyền **Quản trị viên** (*Run as Administrator*), rồi dán **một** trong hai lệnh sau.
+
+**Ổn định (`main`):**
 
 ```powershell
 Set-ExecutionPolicy Bypass -Scope Process -Force; iwr -useb https://raw.githubusercontent.com/DigitalVersion/carevl/main/scripts/setup.ps1 | iex
 ```
 
-### 2. Bản Thử nghiệm (Canary)
-Dành cho các trạm muốn trải nghiệm hệ thống Gateway, Auth và Bảo mật offline (PIN 6 số) mới nhất.
+**Thử nghiệm (`canary`):**
 
 ```powershell
 Set-ExecutionPolicy Bypass -Scope Process -Force; iwr -useb https://raw.githubusercontent.com/DigitalVersion/carevl/canary/scripts/setup.ps1 | iex
