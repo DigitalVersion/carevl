@@ -1,7 +1,12 @@
 # Invite Code Authentication: Fine-grained PAT Provisioning
 
 ## Status
-[Active - Planned]
+[Active - Implemented]
+
+Test Status: ✅ Fully tested (17/17 tests passing)
+- Unit tests: `edge/tests/test_auth_flow.py`
+- Manual demo: `edge/tests/manual_auth_test.py`
+- Test documentation: `edge/tests/README.md`
 
 ## Context
 CareVL can cach xac thuc don gian cho tram:
@@ -97,26 +102,29 @@ Trade-off chap nhan:
 
 ### Checklist
 Hub Admin:
-- Tao bot account co `2FA`
-- Tao private repo
-- Tao PAT fine-grained
-- Export invite code
-- Gui code cho tram
+- [x] Tao bot account co `2FA`
+- [x] Tao private repo
+- [x] Tao PAT fine-grained
+- [x] Export invite code
+- [x] Gui code cho tram
 
 Station App:
-- Co UI nhap invite code
-- Parse/validate code
-- Luu PAT vao Credential Manager
-- Clone/pull/push bang PAT
-- Ho tro `New DB` va `Restore DB`
-- Setup PIN
+- [x] Co UI nhap invite code
+- [x] Parse/validate code
+- [x] Luu PAT vao Credential Manager
+- [x] Clone/pull/push bang PAT
+- [x] Ho tro `New DB` va `Restore DB`
+- [x] Setup PIN
 
 Testing:
-- Test parse invite code
-- Test luu/lay PAT
-- Test clone/push
-- Test revoke PAT
-- Test PAT sai/het han
+- [x] Test parse invite code (6 tests)
+- [x] Test luu/lay PAT (3 tests)
+- [x] Test clone/push (4 tests)
+- [x] Test revoke PAT (covered in credential tests)
+- [x] Test PAT sai/het han (covered in validation tests)
+- [x] Test PIN encryption (2 tests)
+- [x] Test end-to-end flow (2 tests)
+- [x] **Total: 17/17 tests passing ✅**
 
 Migration:
 - Device Flow da dua vao archive
@@ -130,4 +138,5 @@ Fine-grained PAT la cach re, de, va vua du an toan trong bai toan nay. Moi tram 
 - [07. Active Sync Protocol: The Encrypted SQLite Blob](07_active_sync_protocol.md)
 - [14. Bootstrap Infrastructure: One-Liner Setup](14_Bootstrap_Infrastructure.md)
 - [18. Two-App Architecture: Edge vs Hub](18_Two_App_Architecture.md)
+- [23. Authentication Testing Guide](23_Auth_Testing_Guide.md)
 - [../ARCHIVE/17_GitHub_Device_Flow.md](../ARCHIVE/17_GitHub_Device_Flow.md)

@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kích hoạt trạm - CareVL</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="/static/lib/alpine.min.js" defer></script>
+    <script src="/static/lib/htmx.min.js"></script>
+</head>
+<body class="bg-gray-50">
+    <div class="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+        <div class="max-w-md w-full space-y-8">
+            <!-- Header -->
+            <div class="text-center">
+                <h1 class="text-3xl font-bold text-gray-900">CareVL Vĩnh Long</h1>
+                <p class="mt-2 text-sm text-gray-600">Kích hoạt trạm y tế</p>
+            </div>
+
+            <!-- Provisioning Form -->
+            <div 
+                x-data="{
+                    step: 'input',
+                    setupType: 'new',
+                    inviteCode: '',
+                    pin: '',
+                    stationData: null,
+                    error: null,
+                    loading: false
+                }"
+                class="bg-white shadow-md rounded-lg p-8"
+            >
+                <!-- Step 1: Input Invite Code -->
+                <div x-show="step === 'input'" class="space-y-6">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            Mã kích hoạt
+                        </label>
+                        <textarea
+                            x-model="inviteCode"
+                            rows="4"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            placeholder="Dán mã kích hoạt vào đây..."
+                        ></textarea>
+                        <p class="mt-1 text-xs text-gray-500">
+                            Nhận mã kích hoạt từ Admin qua Zalo/Email
+                        </p>
+                    </div>
+
+                    <!-- Error Message -->
+                    <div x-show="error" class="bg-red-50 border border-red-200 rounded-md p-3">
+                        <p class="text-sm text-red-600" x-text="error"></p>
+                    </div>
+
+                    <!-- Validate Button -->
+                    <button
+                        @click="
+                            loading = true;
+                            error = null;
+                            fetch('/provision/validate-code', {
+                                method: 'POST',
+                                headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                                body: new URLSearchParams({invite_code: inviteCode})
+                            })
+                            .then(r => r.json())
+                            .then(data => {
+                                if (data.status === 'success') {
+                                    stationData = data.data;
+                                    step = 'choose';
+                                } else {
+                                    error = data.detail || 'Mã kích hoạt không hợp lệ';
+                                }
+                            })
+                            .catch(e => {
+                                error = 'Lỗi kết nối. Vui lòng thử lại.';
+                            })
+                            .finally(() => loading = false);
+                        "
+                        :disabled="!inviteCode || loading"
+                        class="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
+                    >
+                        <span x-show="!loading">Tiếp tục</span>
+                        <span x-show="loading">Đang kiểm tra...</span>
+                    </button>
+                </div>
+
+                <!-- Step 2: Choose Setup Type -->
+                <div x-show="step === 'choose'" class="space-y-6">
+                    <div class="bg-blue-50 border border-blue-200 rounded-md p-4">
+                        <p class="text-sm text-blue-800">
+                            <strong x-text="stationData?.station_name"></strong>
+                        </p>
+                        <p class="text-xs text-blue-600 mt-1" x-text="stationData?.station_id"></p>
+                    </div>
+
+                    <div class="space-y-3">
+                        <label class="block">
+                            <input
+                                type="radio"
+                                x-model="setupType"
+                                value="new"
+                                class="mr-2"
+                            >
+                            <span class="text-sm font-medium">Máy mới (Tạo cơ sở dữ liệu mới)</span>
+                        </label>
+
+                        <label class="block">
+                            <input
+                                type="radio"
+                                x-model="setupType"
+                                value="restore"
+                                class="mr-2"
+                            >
+                            <span class="text-sm font-medium">Đổi máy (Khôi phục dữ liệu cũ)</span>
+                        </label>
+                    </div>
+
+                    <button
+                        @click="step = 'pin'"
+                        class="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700"
+                    >
+                        Tiếp tục
+                    </button>
+
+                    <button
+                        @click="step = 'input'; error = null"
+                        class="w-full bg-gray-200 text-gray-700 py-2 px-4 rounded-md hover:bg-gray-300"
+                    >
+                        Quay lại
+                    </button>
+                </div>
+
+                <!-- Step 3: Setup PIN -->
+                <div x-show="step === 'pin'" class="space-y-6">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            Đặt mã PIN (6 số)
+                        </label>
+                        <input
+                            type="password"
+                            x-model="pin"
+                            maxlength="6"
+                            pattern="[0-9]{6}"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-center text-2xl tracking-widest"
+                            placeholder="••••••"
+                        >
+                        <p class="mt-1 text-xs text-gray-500">
+                            Mã PIN dùng để bảo vệ dữ liệu khi offline
+                        </p>
+                    </div>
+
+                    <!-- Error Message -->
+                    <div x-show="error" class="bg-red-50 border border-red-200 rounded-md p-3">
+                        <p class="text-sm text-red-600" x-text="error"></p>
+                    </div>
+
+                    <!-- Setup Button -->
+                    <button
+                        @click="
+                            loading = true;
+                            error = null;
+                            const endpoint = setupType === 'new' ? '/provision/setup-new' : '/provision/setup-restore';
+                            fetch(endpoint, {
+                                method: 'POST',
+                                headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                                body: new URLSearchParams({
+                                    invite_code: inviteCode,
+                                    pin: pin
+                                })
+                            })
+                            .then(r => r.json())
+                            .then(data => {
+                                if (data.status === 'success') {
+                                    window.location.href = '/';
+                                } else {
+                                    error = data.detail || 'Kích hoạt thất bại';
+                                }
+                            })
+                            .catch(e => {
+                                error = 'Lỗi kết nối. Vui lòng thử lại.';
+                            })
+                            .finally(() => loading = false);
+                        "
+                        :disabled="pin.length !== 6 || loading"
+                        class="w-full bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
+                    >
+                        <span x-show="!loading">Kích hoạt trạm</span>
+                        <span x-show="loading">Đang kích hoạt...</span>
+                    </button>
+
+                    <button
+                        @click="step = 'choose'; error = null"
+                        :disabled="loading"
+                        class="w-full bg-gray-200 text-gray-700 py-2 px-4 rounded-md hover:bg-gray-300 disabled:bg-gray-100"
+                    >
+                        Quay lại
+                    </button>
+                </div>
+            </div>
+
+            <!-- Help Text -->
+            <div class="text-center text-sm text-gray-600">
+                <p>Cần hỗ trợ? Liên hệ Admin qua Zalo</p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

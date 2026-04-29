@@ -1,0 +1,4 @@
+station_id,station_name,repo_url,pat,encryption_key
+TRAM_001,Trạm Y Tế Xã A,https://github.com/carevl-bot/station-001,ghp_xxxxxxxxxxxx,optional-key-1
+TRAM_002,Trạm Y Tế Xã B,https://github.com/carevl-bot/station-002,ghp_yyyyyyyyyyyy,optional-key-2
+TRAM_003,Trạm Y Tế Xã C,https://github.com/carevl-bot/station-003,ghp_zzzzzzzzzzzz,

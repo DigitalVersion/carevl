@@ -11,12 +11,17 @@
    - `AGENTS/ASSETS/`: tat ca anh, mockup, diagram, SVG
 
 2. **Khong tao file `.md` hay thu muc anh lung tung**
-   - Sai: `scripts/README.md`, `docs/guide.md`, `SETUP.md`, `images/`, `assets/`
-   - Dung: `AGENTS/ACTIVE/16_Setup_Guide.md`, `AGENTS/ASSETS/diagram.svg`
+   - ❌ Sai: `scripts/README.md`, `docs/guide.md`, `SETUP.md`, `images/`, `assets/`
+   - ✅ Dung: `AGENTS/ACTIVE/16_Setup_Guide.md`, `AGENTS/ASSETS/diagram.svg`
+   - **Neu can tao doc thi phai:**
+     - Tao trong `AGENTS/ACTIVE/` hoac `AGENTS/FEATURES/`
+     - Them link vao `AGENTS.md`
+     - Khong duoc tao file `.md` roi rac ngoai `AGENTS/`
 
 3. **Moi tai lieu moi phai co link trong `AGENTS.md`**
    - Them vao `ACTIVE`, `FEATURES`, hoac `ARCHIVE`
    - Phai de tim, de quet
+   - Khong co trong `AGENTS.md` = khong ton tai
 
 4. **Format theo ADR**
    - `## Status`: [Active], [Active - Implemented], [Deprecated], [Planned]
@@ -30,6 +35,29 @@
    - Tao file moi trong `ACTIVE` voi so tiep theo
    - Day file cu qua `ARCHIVE`
    - Cap nhat link trong `AGENTS.md`
+
+## Development Environment (Bat buoc)
+
+**Python = uv, uv = python**
+
+Project nay dung `uv` lam package manager. Moi lenh Python phai chay qua `uv`:
+
+```bash
+# ❌ SAI - Khong dung truc tiep
+python script.py
+pip install package
+
+# ✅ DUNG - Dung qua uv
+uv run python script.py
+uv pip install package
+uv sync
+```
+
+**Ly do:**
+- `uv` quan ly virtual environment tu dong
+- Dam bao dependencies nhat quan
+- Nhanh hon pip
+- Khong conflict voi Python system
 
 ## Feature Syncing Protocol (Bat buoc)
 **Feature doi. Doc phai doi theo.**
@@ -73,6 +101,12 @@ Quyet dinh dang song cua he thong.
 - [18. Two-App Architecture: Edge vs Hub](AGENTS/ACTIVE/18_Two_App_Architecture.md)
   - 📊 [Edge App Architecture Diagram](AGENTS/ASSETS/edge_app_architecture.svg)
   - 📊 [Hub App Architecture Diagram](AGENTS/ASSETS/hub_app_architecture.svg)
+- [19. Phase 2 Migration Guide](AGENTS/ACTIVE/19_Phase2_Migration_Guide.md)
+- [20. Monorepo Migration Complete](AGENTS/ACTIVE/20_Monorepo_Migration_Complete.md)
+- [21. API Specification](AGENTS/ACTIVE/21_API_Specification.md)
+- [22. Deployment Guide: Edge & Hub](AGENTS/ACTIVE/22_Deployment_Guide.md)
+- [23. Authentication Testing Guide](AGENTS/ACTIVE/23_Auth_Testing_Guide.md)
+- [24. Verified State Machine Diagramming](AGENTS/ACTIVE/24_Verified_State_Machine_Diagramming.md)
 
 ---
 

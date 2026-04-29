@@ -10,13 +10,24 @@ Tài liệu này hướng dẫn chi tiết quy trình cài đặt và sử dụn
 
 CareVL được thiết kế theo mô hình **Two-App Architecture**:
 
+### Thuật ngữ chuẩn dùng trong tất cả sơ đồ
+- **Hub Admin**: quản trị viên cấp tỉnh, chuẩn bị repo/PAT/invite code.
+- **Station**: trạm sử dụng Edge App (máy tại trạm).
+- **Snapshot**: file dữ liệu mã hoá `.db.enc` dùng để backup/restore/aggregate.
+
 ### 🏥 Edge App (Trạm) - Bạn đang dùng
 - **Mục đích:** Quản lý dữ liệu tại trạm y tế
 - **Tech:** FastAPI + SQLite + HTMX
 - **Deployment:** Windows .exe (offline-first)
 - **Users:** Operator, Bác sĩ, Lab Tech, Trưởng trạm
 
-![Edge App Architecture](AGENTS/ASSETS/edge_app_architecture.svg)
+```mermaid
+flowchart LR
+    A[Station Users: Operator/Doctor/Lab/Station Lead] --> B[Edge App FastAPI + HTMX]
+    B --> C[Station SQLite]
+    B --> D[Snapshot .db.enc]
+    D --> E[GitHub Releases]
+```
 
 ### 📊 Hub App (Tỉnh) - Dành cho Admin Hub
 - **Mục đích:** Tổng hợp dữ liệu từ 100 trạm
@@ -24,7 +35,13 @@ CareVL được thiết kế theo mô hình **Two-App Architecture**:
 - **Deployment:** Python package
 - **Users:** Admin Hub, Data Analyst
 
-![Hub App Architecture](AGENTS/ASSETS/hub_app_architecture.svg)
+```mermaid
+flowchart LR
+    A[GitHub Releases from Stations] --> B[Hub CLI]
+    B --> C[Decrypt Snapshot]
+    C --> D[DuckDB Aggregate]
+    D --> E[Hub Reports]
+```
 
 **Luồng dữ liệu:**
 ```
@@ -83,6 +100,36 @@ Tạo 1 mã PIN 6 số. Mã này dùng để mở khóa hệ thống hàng ngày
 
 ![PIN Setup](AGENTS/ASSETS/05_mockup_pin_setup.png)
 
+### Mermaid verified: Gateway Setup state flow
+```mermaid
+stateDiagram-v2
+    [*] --> InviteCodeInput
+    InviteCodeInput --> InviteValidated: submitInviteCode()\n[IN: {inviteCode:string}]\n[OUT: {stationId, stationName, repoUrl, patRef}]\n[GUARD: base64 valid + required keys]\n[SE: decode + validate]
+    InviteCodeInput --> InviteError: submitInviteCode()\n[OUT: {errorCode, message}]\n[GUARD: invalid payload]
+
+    InviteValidated --> StationConfirm: confirmStation()\n[IN: {stationId, stationName, repoUrl}]\n[OUT: {confirmedStation}]
+    StationConfirm --> DataSetupChoice: next()\n[OUT: {setupMode: new|restore}]
+
+    DataSetupChoice --> NewDbInit: chooseNewDb()\n[OUT: {dbInitStatus}]\n[GUARD: setupMode==new]\n[SE: init empty sqlite]
+    DataSetupChoice --> RestoreInit: chooseRestore()\n[OUT: {restorePlan, latestSnapshotMeta}]\n[GUARD: setupMode==restore]\n[SE: list Snapshot on GitHub]
+    RestoreInit --> RestoreDone: restoreSnapshot()\n[IN: {snapshotTag, encryptionKeyRef}]\n[OUT: {restoreStatus, restoredAt}]\n[GUARD: snapshot exists]\n[SE: download + decrypt + import Snapshot]
+
+    NewDbInit --> PinSetup: continue()\n[OUT: {pinSetupRequired:true}]
+    RestoreDone --> PinSetup: continue()\n[OUT: {pinSetupRequired:true}]
+    PinSetup --> Ready: savePin()\n[IN: {pin6}]\n[OUT: {pinHashRef, authReady:true}]\n[GUARD: pin format valid]\n[SE: secure store]
+    Ready --> [*]
+
+    InviteError --> InviteCodeInput: retry()\n[OUT: {retryCount}]
+```
+
+**Acceptance Criteria Mapping (Gateway Setup)**
+- **AC1:** Invite Code hop le (base64 + du key `stationId/stationName/repoUrl`) moi duoc qua `InviteValidated`; neu sai phai ve `InviteError`.
+- **AC2:** Station chi duoc vao buoc khoi tao du lieu sau khi xac nhan thong tin tram (`StationConfirm` -> `DataSetupChoice`).
+- **AC3:** Station phai chon dung 1 trong 2 nhanh khoi tao: `New DB` hoac `Restore Snapshot`, khong duoc di dong thoi 2 nhanh.
+- **AC4:** Nhanh `Restore Snapshot` chi thanh cong khi co Snapshot ton tai va decrypt/import thanh cong (`RestoreInit` -> `RestoreDone`).
+- **AC5:** He thong chi o trang thai `Ready` sau khi PIN hop le duoc luu secure (`PinSetup` -> `Ready`).
+- **AC6:** Khi Invite Code loi, luong bat buoc retry tu `InviteError` quay lai `InviteCodeInput` (khong duoc bypass).
+
 ---
 
 ## PHẦN 2: THAO TÁC THEO PERSONAS (SAU KHI ĐĂNG NHẬP)
@@ -96,17 +143,58 @@ Hệ thống CareVL hoạt động theo 3 bước chính:
 #### **Bước 1: Chuẩn bị Hệ thống**
 Hub Admin chuẩn bị (1 lần) + Trạm cài đặt (4 bước)
 
-![Workflow 1: Preparation](AGENTS/ASSETS/workflow_1_preparation.svg)
+```mermaid
+flowchart LR
+    A[Hub Admin: Create station repo + PAT + Invite Code] --> B[Station: Install Edge App]
+    B --> C[Enter Invite Code]
+    C --> D[Confirm Station]
+    D --> E{Initialize Data}
+    E -->|New DB| F[Initialize new SQLite]
+    E -->|Restore Snapshot| G[Pull Snapshot from GitHub]
+    F --> H[Setup PIN]
+    G --> H
+    H --> I[System Ready]
+```
 
 #### **Bước 2: Sử dụng Hàng ngày**
 4 Personas với 10 chức năng Sidebar
 
-![Workflow 2: Daily Usage](AGENTS/ASSETS/workflow_2_daily_usage.svg)
+```mermaid
+flowchart LR
+    A[Persona A: Intake] --> B[2. Queue]
+    B --> C[Persona B: Patient Record]
+    C --> D[Persona C: 4. Aggregate Input]
+    C --> E[Persona C: 5. Results Update]
+    D --> F[Persona D: 6. Reports]
+    E --> F
+    F --> G[7. Export to Hub]
+    G --> H[8. Audit]
+    H --> I[9. Station Settings]
+    I --> J[10. About]
+```
 
 #### **Bước 3: Xuất Dữ liệu & Tổng hợp**
 Edge App → GitHub → Hub App (Two-App Architecture)
 
-![Workflow 3: Data Export](AGENTS/ASSETS/workflow_3_data_export.svg)
+```mermaid
+stateDiagram-v2
+    [*] --> EdgeDataReady
+    EdgeDataReady --> SnapshotCreated: createSnapshot()\n[IN: {stationDbPath, encryptionKeyRef}]\n[OUT: {snapshotFile, checksum, createdAt}]\n[GUARD: db readable]\n[SE: encrypt sqlite -> .db.enc]
+    SnapshotCreated --> SnapshotUploaded: uploadSnapshot()\n[IN: {snapshotFile, repoUrl, patRef}]\n[OUT: {releaseTag, assetUrl}]\n[GUARD: github auth success]\n[SE: upload to GitHub Releases]
+    SnapshotUploaded --> HubDownload: pullForHub()\n[IN: {releaseTag, stationRepoList}]\n[OUT: {snapshotBundle}]\n[SE: Hub CLI download]
+    HubDownload --> HubDecrypt: decryptSnapshot()\n[IN: {snapshotBundle, hubKeyRef}]\n[OUT: {decryptedDbSet}]\n[GUARD: checksum valid]\n[SE: decrypt .db.enc]
+    HubDecrypt --> HubAggregate: aggregate()\n[IN: {decryptedDbSet}]\n[OUT: {aggregatedTables, qualityReport}]\n[SE: DuckDB queries]
+    HubAggregate --> HubReports: generateReports()\n[OUT: {excel, pdf, parquet}]
+    HubReports --> [*]
+```
+
+**Acceptance Criteria Mapping (Data Export & Hub Aggregation)**
+- **AC1:** Edge chi tao duoc Snapshot khi database doc duoc (`EdgeDataReady` -> `SnapshotCreated`).
+- **AC2:** Snapshot upload len GitHub Releases chi xay ra khi auth GitHub thanh cong (`SnapshotCreated` -> `SnapshotUploaded`).
+- **AC3:** Hub chi duoc download theo release tag/repo list hop le, tao `snapshotBundle` day du (`SnapshotUploaded` -> `HubDownload`).
+- **AC4:** Hub chi decrypt khi checksum hop le; Snapshot loi checksum phai bi chan truoc aggregate (`HubDownload` -> `HubDecrypt` guard).
+- **AC5:** Bao cao tong hop (`HubReports`) chi duoc sinh sau buoc aggregate DuckDB thanh cong (`HubDecrypt` -> `HubAggregate` -> `HubReports`).
+- **AC6:** Output cuoi cung phai co it nhat mot dinh dang bao cao (`excel`/`pdf`/`parquet`) de xem la ket thuc flow hop le.
 
 ---
 

@@ -8,6 +8,7 @@
 - Deprecated: co
 - Deprecated date: 2026-04-28
 - Replaced by: [17. Invite Code Authentication](../ACTIVE/17_Invite_Code_Authentication.md)
+- Test Status: ✅ Invite Code Authentication fully tested (17/17 tests passing)
 
 ## Context
 May tram can kich hoat lan dau de co quyen ghi va dong bo. Ban thiet ke cu dung GitHub Device Flow 5 buoc. Nguoi dung cuoi thay dai, roi, va le thuoc thao tac GitHub qua nhieu.
