@@ -29,8 +29,13 @@ Nhóm đã thống nhất hướng: **định danh qua căn cước công dân (
    - Bước 3: Cập nhật **sơ đồ E2E / tính năng** ([26. Thư mục trực quan hóa](26_Visualization.md), [1. Tiếp nhận mới](../FEATURES/1_tiep_nhan_moi.md)) nếu bước 4 (vận hành hằng ngày) đổi màn hình hoặc luồng.
    - **Wireframe** (nếu cần): chỉ bắt buộc khi luồng tiếp nhận / chọn mô-đun phức tạp; không bắt buộc trước bước 1.
 
+5. **Hình thức câu hỏi trong khảo sát / mô-đun (ưu tiên lựa chọn sẵn)**
+   - Mỗi mục cần thu thập: **mặc định** thiết kế dưới dạng **câu hỏi có đáp án chọn** (một lựa chọn, nhiều lựa chọn, thang điểm / Likert, Có–Không–Không rõ, …) với **danh mục đáp án đóng** do nghiệp vụ phê duyệt.
+   - **Tự luận** (ô nhập chữ tự do) chỉ dùng khi **không thể** gói vào lựa chọn sẵn (ghi chú bổ sung, mô tả triệu chứng hiếm, ý kiến khác…) và cần **hạn chế số lượng** câu / độ dài để tránh mỏi người khai và khó tổng hợp dữ liệu.
+   - Nguyên tắc vận hành tại trạm: **nhiều câu trắc nghiệm** thường **nhẹ hơn** cho người khai và cho kiểm dữ liệu so với **nhiều câu tự luận**; khi soạn bộ câu hỏi, ưu tiên giảm suy nghĩ nhập liệu.
+
 ## Cơ sở
-Tách “con người” và “máy” giảm rủi ro: Sở ký phạm vi thu thập trước, lập trình không phải đoán. `questionnaire` / biểu mẫu động trong giai đoạn 2 **khớp** với ý tưởng mô-đun theo đối tượng mà **chưa cần** biết hết SQL ngay hôm nay.
+Tách “con người” và “máy” giảm rủi ro: Sở ký phạm vi thu thập trước, lập trình không phải đoán. `questionnaire` / biểu mẫu động trong giai đoạn 2 **khớp** với ý tưởng mô-đun theo đối tượng mà **chưa cần** biết hết SQL ngay hôm nay. Đáp án có cấu trúc (chọn sẵn) **vừa** giảm tải cognitive tại quầy **vừa** giúp Hub / báo cáo đếm và so sánh nhất quán.
 
 ## Phụ lục A — Định danh (lớp người nghiệp vụ)
 
@@ -51,11 +56,29 @@ Tách “con người” và “máy” giảm rủi ro: Sở ký phạm vi thu 
 
 **Quy tắc thiết kế (trước khi có SQL):** một `Encounter` có thể **gắn** một hoặc nhiều “mô-đun” nghiệp vụ; cách lưu trữ (`questionnaire`, siêu dữ liệu lượt khám, …) do **Lớp B** quyết định sau khi các bảng trên được đồng ý.
 
+## Phụ lục C — Câu hỏi và đáp án (chọn sẵn trước, tự luận hạn chế)
+
+| Loại / hình thức | Mô tả ngắn | Khi nào ưu tiên |
+|-------------------|------------|-----------------|
+| Một lựa chọn (radio) | Danh sách đáp án đóng, chọn một | Câu có đáp án rõ ràng, loại trừ lẫn nhau |
+| Nhiều lựa chọn (checkbox) | Chọn nhiều mục trong danh mục | Triệu chứng / yếu tố đồng thời tồn tại |
+| Thang điểm / Likert | Ví dụ 0–3, 1–5, “Không–Nhẹ–Vừa–Nặng” | Mức độ, tần suất, mức đồng ý |
+| Có / Không / Không rõ / Từ chối trả lời | Chuẩn hóa sàng lọc | Giảm nhập tay và nhập nhầm chữ |
+| Danh mục có mã (mã ICD đơn giản hóa, mã nội bộ) | Chọn từ danh mục, không gõ tự do mã | Khi cần thống kê theo mã |
+
+| Loại | Mô tả | Khi nào được phép, hạn chế thế nào |
+|------|--------|-------------------------------------|
+| Tự luận (ô chữ ngắn) | Một dòng hoặc vài dòng | Chỉ khi không gói được vào bảng trên; **ít câu**, có gợi ý placeholder (ví dụ “Mô tả ngắn nếu có”) |
+| Tự luận (đoạn dài) | Nhiều dòng | **Tránh** trên luồng đông / tiếp nhận; nếu bắt buộc nghiệp vụ thì tách màn hoặc giai đoạn (sau khám), có giới hạn ký tự |
+
+**Ghi chú triển khai:** khi soạn thảo với chuyên môn, nên kèm **bảng câu hỏi – kiểu đáp án – danh mục lựa chọn** (file phụ hoặc phần mở rộng của Lớp A); Lớp B chỉ cần map sang kiểu trường trong `questionnaire` / JSON template.
+
 ## Mớ mở cần làm rõ (ghi thêm dần)
 
 - Danh sách chính thức **các nhóm đối tượng** và tiêu chí vào nhóm (tuổi? loại khám?).
 - Gói khám theo **quy định địa phương / năm** có thay đổi theo mùa không.
 - Mô-đun nào **bắt buộc** so với **tự chọn**; ai ký (bác sĩ / tiếp nhận / hệ thống tự động).
+- Ngưỡng nghiệp vụ: tối đa **bao nhiêu** câu tự luận / mô-đun; tỷ lệ gợi ý (ví dụ ≥80% câu có lựa chọn sẵn) nếu Sở muốn quy chuẩn.
 
 ## Tài liệu liên quan
 - [09. Đặc tả lược đồ CareVL giai đoạn 2](09_Phase2_Schema_Spec.md)
