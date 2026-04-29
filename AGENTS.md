@@ -77,10 +77,9 @@ O buoc finalize, truoc `submit`, agent phai lam:
 
 ## SOP & Resources
 - [Cam nang Thiet ke Hinh anh (Image Generation Bible)](AGENTS/IMAGE_GUIDE.md)
-- [Diagram Hub: State Machine & Dataflow Index](AGENTS/ACTIVE/25_Diagram_Hub.md)
 
-## START HERE - DIAGRAMS & STATE MACHINES
-- [25. Diagram Hub: State Machine & Dataflow Index](AGENTS/ACTIVE/25_Diagram_Hub.md)
+## START HERE - VISUALIZATION (ALL IMAGES + TABLES)
+- [26. Visualization Catalog: All Diagrams & Mockups](AGENTS/ACTIVE/26_Visualization.md)
 - [24. Verified State Machine Diagramming](AGENTS/ACTIVE/24_Verified_State_Machine_Diagramming.md)
 
 ---
@@ -112,7 +111,7 @@ Quyet dinh dang song cua he thong.
 - [22. Deployment Guide: Edge & Hub](AGENTS/ACTIVE/22_Deployment_Guide.md)
 - [23. Authentication Testing Guide](AGENTS/ACTIVE/23_Auth_Testing_Guide.md)
 - [24. Verified State Machine Diagramming](AGENTS/ACTIVE/24_Verified_State_Machine_Diagramming.md)
-- [25. Diagram Hub: State Machine & Dataflow Index](AGENTS/ACTIVE/25_Diagram_Hub.md)
+- [26. Visualization Catalog: All Diagrams & Mockups](AGENTS/ACTIVE/26_Visualization.md)
 
 ---
 
@@ -139,7 +138,8 @@ Quyet dinh da bo. Giu lai de biet vi sao khong di huong cu.
 - [05. Legacy CustomTkinter App](AGENTS/ARCHIVE/05_Legacy_Tkinter_App.md)
 - [06. Legacy OMR Pipeline](AGENTS/ARCHIVE/06_Legacy_OMR_Pipeline.md)
 - [17. GitHub Device Flow Authentication (Deprecated)](AGENTS/ARCHIVE/17_GitHub_Device_Flow.md) - thay boi Invite Code Authentication
+- [25. Diagram Hub (Deprecated)](AGENTS/ARCHIVE/25_Diagram_Hub.md) - thay boi Visualization Catalog
 
 ---
 
-*Cap nhat lan cuoi: 2026-04-28 00:00:00*
+*Cap nhat lan cuoi: 2026-04-29 00:00:00*

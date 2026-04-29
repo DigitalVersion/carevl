@@ -18,6 +18,7 @@ Tài liệu này quy định cách thức tạo và lưu trữ hình ảnh cho h
 - **Mục đích:** Dùng trong `TUTORIAL.md`, tài liệu hướng dẫn người dùng
 
 #### B. Diagram kỹ thuật (Sơ đồ kiến trúc, state machine, flowchart)
+- **Catalog xem tất cả hình:** [26. Visualization Catalog](ACTIVE/26_Visualization.md)
 - **Công cụ cho phép:** 
   - Mermaid (source-of-truth, ưu tiên)
   - SVG inline (artifact hoặc minh họa tĩnh)
