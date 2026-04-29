@@ -7,6 +7,13 @@
 
 ## Bản cho mọi người — **đọc từ đây trước**
 
+### Đi nhanh: danh sách câu hỏi gửi lãnh đạo / Sở ở đâu?
+
+- **Câu hỏi đã gõ sẵn (copy đi họp):** xuống mục **«Phần 2 — Câu hỏi cho lãnh đạo / Sở (chưa chốt)»** — có **3 câu đánh số** (trẻ em, người cao tuổi, gói khám / nhóm khác).  
+- **Ý cần hỏi thêm hoặc ghi sau họp:** mục **«Còn phải hỏi thêm»** (ngay trước phần ADR cuối file) — dạng gạch đầu dòng để bổ sung dần.
+
+*(Trong editor: có thể tìm chữ **«Phần 2»** hoặc **«Còn phải hỏi thêm»**.)*
+
 ### Tài liệu này để làm gì? (ba câu)
 
 1. **Trước khi làm CSDL:** cả Sở và trạm cần **cùng hiểu** sẽ thu **những thông tin gì** khi dân đến khám.  
@@ -49,9 +56,9 @@
 
 ---
 
-### Phần 2 — **Chưa chốt**, cần Sở / chuyên môn **trả lời rõ**
+### Phần 2 — Câu hỏi cho lãnh đạo / Sở (**chưa chốt** — đem đi họp)
 
-*(Đây **không phải** quyết định cuối — là **câu hỏi** để họp.)*
+*(Đây **không phải** quyết định cuối — là **danh sách câu hỏi** để lãnh đạo / Sở / chuyên môn trả lời.)*
 
 1. **Trẻ em:** có bắt buộc phần sàng lọc liên quan **tự kỷ** không? Từ **bao nhiêu tuổi**? Theo **văn bản nào** của ngành?  
 2. **Người cao tuổi:** «Cao tuổi» tính theo **tuổi** hay theo **nhóm đối tượng** chương trình? Có bắt buộc phần **tâm lý / trầm cảm** không?  
