@@ -29,13 +29,14 @@ Nhóm đã thống nhất hướng: **định danh qua căn cước công dân (
    - Bước 3: Cập nhật **sơ đồ E2E / tính năng** ([26. Thư mục trực quan hóa](26_Visualization.md), [1. Tiếp nhận mới](../FEATURES/1_tiep_nhan_moi.md)) nếu bước 4 (vận hành hằng ngày) đổi màn hình hoặc luồng.
    - **Wireframe** (nếu cần): chỉ bắt buộc khi luồng tiếp nhận / chọn mô-đun phức tạp; không bắt buộc trước bước 1.
 
-5. **Hình thức câu hỏi trong khảo sát / mô-đun (ưu tiên lựa chọn sẵn)**
+5. **Hình thức câu hỏi trên biểu mẫu thu thập / khảo sát tại trạm (ưu tiên lựa chọn sẵn)**  
+   *(Đây là cách đặt **câu hỏi cho người bệnh / nhân viên trên màn hình** — **khác** với câu hỏi dùng khi **họp thiết kế schema** — bảng, cột, migration; phần đó nằm trong [09. Đặc tả lược đồ CareVL giai đoạn 2](09_Phase2_Schema_Spec.md), mục **«Câu hỏi khi xây dựng schema»**.)*
    - Mỗi mục cần thu thập: **mặc định** thiết kế dưới dạng **câu hỏi có đáp án chọn** (một lựa chọn, nhiều lựa chọn, thang điểm / Likert, Có–Không–Không rõ, …) với **danh mục đáp án đóng** do nghiệp vụ phê duyệt.
    - **Tự luận** (ô nhập chữ tự do) chỉ dùng khi **không thể** gói vào lựa chọn sẵn (ghi chú bổ sung, mô tả triệu chứng hiếm, ý kiến khác…) và cần **hạn chế số lượng** câu / độ dài để tránh mỏi người khai và khó tổng hợp dữ liệu.
    - Nguyên tắc vận hành tại trạm: **nhiều câu trắc nghiệm** thường **nhẹ hơn** cho người khai và cho kiểm dữ liệu so với **nhiều câu tự luận**; khi soạn bộ câu hỏi, ưu tiên giảm suy nghĩ nhập liệu.
 
 ## Cơ sở
-Tách “con người” và “máy” giảm rủi ro: Sở ký phạm vi thu thập trước, lập trình không phải đoán. `questionnaire` / biểu mẫu động trong giai đoạn 2 **khớp** với ý tưởng mô-đun theo đối tượng mà **chưa cần** biết hết SQL ngay hôm nay. Đáp án có cấu trúc (chọn sẵn) **vừa** giảm tải cognitive tại quầy **vừa** giúp Hub / báo cáo đếm và so sánh nhất quán.
+Tách “con người” và “máy” giảm rủi ro: Sở ký phạm vi thu thập trước, lập trình không phải đoán. `questionnaire` / biểu mẫu động trong giai đoạn 2 **khớp** với ý tưởng mô-đun theo đối tượng mà **chưa cần** biết hết SQL ngay hôm nay. Đáp án có cấu trúc (chọn sẵn) **vừa** giảm tải cognitive tại quầy **vừa** giúp Hub / báo cáo đếm và so sánh nhất quán. Nguyên tắc «ưu tiên lựa chọn sẵn» áp dụng **song song**: trên biểu mẫu (mục 5) và trong **câu hỏi elicitation khi xây schema** (tài liệu 09).
 
 ## Phụ lục A — Định danh (lớp người nghiệp vụ)
 
@@ -56,7 +57,7 @@ Tách “con người” và “máy” giảm rủi ro: Sở ký phạm vi thu 
 
 **Quy tắc thiết kế (trước khi có SQL):** một `Encounter` có thể **gắn** một hoặc nhiều “mô-đun” nghiệp vụ; cách lưu trữ (`questionnaire`, siêu dữ liệu lượt khám, …) do **Lớp B** quyết định sau khi các bảng trên được đồng ý.
 
-## Phụ lục C — Câu hỏi và đáp án (chọn sẵn trước, tự luận hạn chế)
+## Phụ lục C — Câu hỏi và đáp án **trên biểu mẫu** (chọn sẵn trước, tự luận hạn chế)
 
 | Loại / hình thức | Mô tả ngắn | Khi nào ưu tiên |
 |-------------------|------------|-----------------|

@@ -27,6 +27,27 @@ Schema moi theo cac quy tac sau:
 9. Mot so bang giu `raw_json` de migrate va truy vet.
 10. Moi ban ghi nghiep vu gan duoc voi `station_id` va `author`.
 
+## Cau hoi khi xay dung schema (elicitation — uu tien tra loi co cau truc)
+
+Day la **cac cau hoi dat trong buoi thiet ke / mo rong schema** (bang, cot, FK, migration) — **khac** voi cau hoi tren bieu mau benh nhan; bieu mau xem [27. Pham vi thu thap du lieu nghiep vu](27_Business_Data_Intake_Scope.md) (muc 5 va Phu luc C).
+
+Khi hop bo sung bang, cot, rang buoc hoac buoc migrate, **tranh** cau hoi mo kieu «luu them gi?» — de dan toi SQL mo ho va sua vong.
+
+**Quy uoc:**
+
+- **Uu tien cau hoi co lua chon san:** bat buoc hay khong; kieu du lieu (INTEGER / REAL / TEXT ngan co max / DATETIME / JSON / BLOB); quan he 1-1 hay 1-n; chi Edge hay snapshot Hub cung doc; co can index khong; gia tri mac dinh; he ma (`local`, `loinc`, …).
+- **Tu luan** chi o **ghi chu nghiep vu ngan** (mot dong) khi chua co trong danh muc; lan hop sau **chot** thanh muc chon hoac cot moi ro rang.
+
+| Hang muc | Goi y hoi dang chon | Tranh |
+|----------|---------------------|--------|
+| Bat buoc / null | Bat buoc / Tu chon / Tu chon neu dieu kien X | De mac dinh ngam |
+| Kieu du lieu | Bang danh muc kieu + do dai max neu TEXT | «Tuy code» |
+| Quan he | Thuoc mot `encounter` / Thuoc mot `patient` / Bang lien ket n-n | Mo ta dai bang loi |
+| Pham vi luu | Chi Edge / Duoc dua vao snapshot cho Hub | Khong ro Hub co doc khong |
+| Ma va hien thi | `code_system` + `code` + `code_display` (theo rule code o duoi) | Chi luu chu tu do |
+
+Lien ket: phia nghiep vu da khoa truoc SQL thi xem [27](27_Business_Data_Intake_Scope.md); sau do dung bang tren de **chuyen sang cot SQL cu the**.
+
 Bang loi:
 - `patients`
 - `encounters`
@@ -120,7 +141,7 @@ Quyet dinh chot:
 6. DuckDB thuoc Hub, khong nam trong Edge
 
 ## Rationale
-Schema nay giu UI Edge van nhe, nhung du lieu ben duoi sach hon, de query hon, va de day sang Hub de tong hop. Tach bang theo y nghia y khoa giup bao cao, audit, migrate, va lien thong sau nay de di dung huong FHIR. Dinh danh nghiep vu (CCCD, VNeID, BHYT) la nguon cho ca **bao cao tong hop** va **lien thong batch** o Hub (buoc 10 vs 11 trong `overview_end_to_end.svg`); khong dong nhat “co VNeID trong schema” voi “chi co mot kenh xuat”.
+Schema nay giu UI Edge van nhe, nhung du lieu ben duoi sach hon, de query hon, va de day sang Hub de tong hop. Tach bang theo y nghia y khoa giup bao cao, audit, migrate, va lien thong sau nay de di dung huong FHIR. Dinh danh nghiep vu (CCCD, VNeID, BHYT) la nguon cho ca **bao cao tong hop** va **lien thong batch** o Hub (buoc 10 vs 11 trong `overview_end_to_end.svg`); khong dong nhat “co VNeID trong schema” voi “chi co mot kenh xuat”. **Cau hoi elicitation dang chon** khi xay schema giam lech hieu giua nghiep vu va cot SQL.
 
 ## Related Documents
 - [27. Phạm vi thu thập dữ liệu nghiệp vụ (người trước, kỹ thuật sau)](27_Business_Data_Intake_Scope.md)
