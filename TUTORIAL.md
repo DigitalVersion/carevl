@@ -10,7 +10,7 @@ Tài liệu này hướng dẫn chi tiết quy trình cài đặt và sử dụn
 
 CareVL được thiết kế theo mô hình **Two-App Architecture**:
 
-> Xem tất cả hình ảnh và sơ đồ tại: [Visualization Catalog](AGENTS/ACTIVE/26_Visualization.md)
+> Sơ đồ kỹ thuật (SVG + Mermaid + bảng): [Visualization Catalog](AGENTS/ACTIVE/26_Visualization.md). Ảnh chụp màn hình chỉ nằm trong tài liệu này.
 
 ### Thuật ngữ chuẩn dùng trong tất cả sơ đồ
 - **Hub Admin**: quản trị viên cấp tỉnh, chuẩn bị repo/PAT/invite code.

@@ -1,22 +1,22 @@
-# Visualization Catalog (All Diagrams & Mockups)
+# Visualization Catalog (SVG + Mermaid only)
 
-Ten file trong repo: `AGENTS/ACTIVE/26_Visualization.md` (day la catalog visualization tong hop; khong dat `.md` o root vi quy tac `AGENTS.md`).
+Ten file trong repo: `AGENTS/ACTIVE/26_Visualization.md` (catalog so do ky thuat; khong dat `.md` o root vi quy tac `AGENTS.md`).
 
 ## Status
 [Active]
 
 ## Context
-Can mot file mo len la thay **tat ca hinh anh / so do** trong `AGENTS/ASSETS/` va **bang di kem** (mo ta nghiep vu, schema/dataflow neu co), khong phai nhay qua nhieu tai lieu.
+Can mot file mo len la thay **tat ca so do dang SVG** trong `AGENTS/ASSETS/` va **cac so do Mermaid** (state machine / flow) kem **bang schema + dataflow** ngay ben duoi.
+
+**Anh chup man hinh (mockup PNG)** chi nam trong [TUTORIAL.md](../../TUTORIAL.md), khong lap lai o day.
 
 ## Decision
-Dung file nay lam **catalog visualization duy nhat** cho repo CareVL.
-
-- Duong dan asset: `../ASSETS/<ten_file>`
-- Mockup UI: khong co schema ky thuat day du, bang di kem la **mo ta man hinh + muc tieu**.
-- So do kien truc / workflow SVG: bang di kem la **thanh phan chinh + luong du lieu**.
+- Phan **SVG**: embed tu `../ASSETS/*.svg` + bang mo ta ngan.
+- Phan **Mermaid**: nhung truc tiep trong file nay + bang `Schema Contracts` + `Dataflow Transactions` (mau chuan verified).
+- Chi tiet quy uoc ve Mermaid / GitHub render: [24. Verified State Machine Diagramming](24_Verified_State_Machine_Diagramming.md).
 
 ## Rationale
-Mot catalog scroll duoc giup nguoi va AI doc nhanh, giam phan tan link roi rac.
+Tach ro: catalog ky thuat (vector + mermaid) vs huong dan nguoi dung (screenshot).
 
 ## Related Documents
 - [24. Verified State Machine Diagramming](24_Verified_State_Machine_Diagramming.md)
@@ -103,90 +103,89 @@ Mot catalog scroll duoc giup nguoi va AI doc nhanh, giam phan tan link roi rac.
 
 ---
 
-## UI mockups & product shots (PNG)
+## Mermaid: verified examples (state machine + tables)
 
-### `01_mockup_github_auth.png`
-![Invite Code Input](../ASSETS/01_mockup_github_auth.png)
+### Example: auth-like flow (mau chuan)
 
-| Man hinh | Hanh dong chinh | Ket qua mong doi |
+```mermaid
+stateDiagram-v2
+    [*] --> Idle
+    Idle --> Loading: submit()
+    Loading --> Authenticated: onSuccess()
+    Loading --> Error: onFail()
+    Error --> Idle: retry()
+    Error --> Locked: lock()
+```
+
+**Schema Contracts**
+
+| Contract | Fields | Rules |
 |---|---|---|
-| Nhap Invite Code | Paste code -> Xac nhan | He thong nhan dien tram + repo |
+| LoginInput | email, password | email format valid, password min length |
+| AuthResponse | token, userId | token required |
+| AuthSession | token, userId, expiresAt | expiresAt required |
+| AuthError | errorCode, message | errorCode required |
+
+**Dataflow Transactions**
+
+| Transition | From | To | Input Contract | Output Contract | Guard | Side Effects |
+|---|---|---|---|---|---|---|
+| submit() | Idle | Loading | LoginInput | LoadingState | email_valid | POST auth_login |
+| onSuccess() | Loading | Authenticated | AuthResponse | AuthSession | response_ok | session_write |
+| onFail() | Loading | Error | AuthResponse | AuthError | response_error | emit_error_event |
+| retry() | Error | Idle | RetryInput | IdleState | retryCount_lt_3 | clear_error_state |
+| lock() | Error | Locked | RetryInput | LockedState | retryCount_gte_3 | lock_5m |
 
 ---
 
-### `02_mockup_repo_config.png`
-![Station Name Confirmation](../ASSETS/02_mockup_repo_config.png)
+### Gateway setup (rut gon)
 
-| Man hinh | Hanh dong chinh | Ket qua mong doi |
+```mermaid
+stateDiagram-v2
+    [*] --> InviteCodeInput
+    InviteCodeInput --> InviteValidated: submitInviteCode()
+    InviteCodeInput --> InviteError: submitInviteCodeFail()
+    InviteValidated --> StationConfirm: confirmStation()
+    StationConfirm --> DataSetupChoice: chooseSetupMode()
+    DataSetupChoice --> NewDbInit: chooseNewDb()
+    DataSetupChoice --> RestoreInit: chooseRestore()
+    RestoreInit --> RestoreDone: restoreSnapshot()
+    NewDbInit --> PinSetup: continue()
+    RestoreDone --> PinSetup: continue()
+    PinSetup --> Ready: savePin()
+    Ready --> [*]
+    InviteError --> InviteCodeInput: retry()
+```
+
+**Schema Contracts**
+
+| Contract | Fields | Rules |
 |---|---|---|
-| Xac nhan tram | Kiem tra ten tram | Xac nhan thong tin truoc khoi tao |
+| InviteCodeInput | inviteCode | required, base64 |
+| InviteCodeDecoded | stationId, stationName, repoUrl, patRef | all required |
+| SetupMode | mode | enum: new, restore |
+| RestoreRequest | snapshotTag, encryptionKeyRef | required when mode=restore |
+| PinInput | pin6 | required, exactly 6 digits |
+| ReadyContext | pinHashRef, authReady | authReady must be true |
 
----
+**Dataflow Transactions**
 
-### `03_mockup_permission_gate.png`
-![Permission Gate](../ASSETS/03_mockup_permission_gate.png)
-
-| Man hinh | Hanh dong chinh | Ket qua mong doi |
-|---|---|---|
-| Permission gate | Kiem tra quyen / trang thai | Chi cho tiep khi hop le |
-
----
-
-### `04_mockup_data_setup_restore.png`
-![Data Setup Restore](../ASSETS/04_mockup_data_setup_restore.png)
-
-| Man hinh | Hanh dong chinh | Ket qua mong doi |
-|---|---|---|
-| Khoi tao du lieu | New DB hoac Restore Snapshot | DB tram san sang tiep tuc |
-
----
-
-### `05_mockup_pin_setup.png`
-![PIN Setup](../ASSETS/05_mockup_pin_setup.png)
-
-| Man hinh | Hanh dong chinh | Ket qua mong doi |
-|---|---|---|
-| PIN offline | Nhap PIN 6 so | Mo khoa van hanh hang ngay |
-
----
-
-### `sidebar_desktop.png`
-![Sidebar Desktop](../ASSETS/sidebar_desktop.png)
-
-| Man hinh | Muc tieu |
-|---|---|
-| Sidebar desktop | Dieu huong 10 chuc nang ro rang |
-
----
-
-### `sidebar_active_state.png`
-![Sidebar Active State](../ASSETS/sidebar_active_state.png)
-
-| Man hinh | Muc tieu |
-|---|---|
-| Active state | Hien thi muc dang chon / trang thai active |
-
----
-
-### `sidebar_placeholder.png`
-![Sidebar Placeholder](../ASSETS/sidebar_placeholder.png)
-
-| Man hinh | Muc tieu |
-|---|---|
-| Placeholder | Giu layout khi tinh nang chua hoan tat |
-
----
-
-### `sync_complete.png`
-![Sync Complete](../ASSETS/sync_complete.png)
-
-| Man hinh | Muc tieu |
-|---|---|
-| Sync / backup hoan tat | Xac nhan tac vu xuat / dong bo thanh cong |
+| Transition | From | To | Input Contract | Output Contract | Guard | Side Effects |
+|---|---|---|---|---|---|---|
+| submitInviteCode() | InviteCodeInput | InviteValidated | InviteCodeInput | InviteCodeDecoded | base64_valid_and_required_keys | decode_and_validate |
+| submitInviteCodeFail() | InviteCodeInput | InviteError | InviteCodeInput | AuthError | invalid_payload | capture_validation_error |
+| confirmStation() | InviteValidated | StationConfirm | InviteCodeDecoded | StationContext | station_fields_present | persist_station_context |
+| chooseSetupMode() | StationConfirm | DataSetupChoice | StationContext | SetupMode | setup_mode_selected | - |
+| chooseNewDb() | DataSetupChoice | NewDbInit | SetupMode | DbInitStatus | setupMode_is_new | init_empty_sqlite |
+| chooseRestore() | DataSetupChoice | RestoreInit | SetupMode | RestoreRequest | setupMode_is_restore | list_snapshot_on_github |
+| restoreSnapshot() | RestoreInit | RestoreDone | RestoreRequest | RestoreStatus | snapshot_exists | download_decrypt_import_snapshot |
+| continue() | NewDbInit/RestoreDone | PinSetup | DbInitStatus_or_RestoreStatus | PinSetupRequired | init_or_restore_success | - |
+| savePin() | PinSetup | Ready | PinInput | ReadyContext | pin_format_valid | secure_store |
+| retry() | InviteError | InviteCodeInput | RetryInput | InviteCodeInput | retryCount_allowed | clear_error_state |
 
 ---
 
 ## Ghi chu cho tac nhan AI
 
-- Day la **noi duy nhat** can mo de quet toan bo visualization trong `AGENTS/ASSETS/`.
-- Neu can **schema contracts + dataflow transactions** day du cho state machine, tiep tuc doc [24. Verified State Machine Diagramming](24_Verified_State_Machine_Diagramming.md).
+- Mo file nay de quet **SVG + Mermaid + bang**; mockup PNG chi o `TUTORIAL.md`.
+- Quy uoc viet Mermaid / tach bang: [24. Verified State Machine Diagramming](24_Verified_State_Machine_Diagramming.md).

@@ -78,8 +78,8 @@ O buoc finalize, truoc `submit`, agent phai lam:
 ## SOP & Resources
 - [Cam nang Thiet ke Hinh anh (Image Generation Bible)](AGENTS/IMAGE_GUIDE.md)
 
-## START HERE - VISUALIZATION (ALL IMAGES + TABLES)
-- [26. Visualization Catalog: All Diagrams & Mockups](AGENTS/ACTIVE/26_Visualization.md)
+## START HERE - VISUALIZATION (SVG + MERMAID + TABLES)
+- [26. Visualization Catalog: SVG, Mermaid & Tables](AGENTS/ACTIVE/26_Visualization.md)
 - [24. Verified State Machine Diagramming](AGENTS/ACTIVE/24_Verified_State_Machine_Diagramming.md)
 
 ---
@@ -111,7 +111,7 @@ Quyet dinh dang song cua he thong.
 - [22. Deployment Guide: Edge & Hub](AGENTS/ACTIVE/22_Deployment_Guide.md)
 - [23. Authentication Testing Guide](AGENTS/ACTIVE/23_Auth_Testing_Guide.md)
 - [24. Verified State Machine Diagramming](AGENTS/ACTIVE/24_Verified_State_Machine_Diagramming.md)
-- [26. Visualization Catalog: All Diagrams & Mockups](AGENTS/ACTIVE/26_Visualization.md)
+- [26. Visualization Catalog: SVG, Mermaid & Tables](AGENTS/ACTIVE/26_Visualization.md)
 
 ---
 

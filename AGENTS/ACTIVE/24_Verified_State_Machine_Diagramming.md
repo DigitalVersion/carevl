@@ -175,7 +175,7 @@ Hay tao Verified State Machine voi:
 ```
 
 ## Related Documents
-- [26. Visualization Catalog: All Diagrams & Mockups](26_Visualization.md)
+- [26. Visualization Catalog: SVG, Mermaid & Tables](26_Visualization.md)
 - [16. Testing Guidelines](16_Testing_Guidelines.md)
 - [21. API Specification](21_API_Specification.md)
 - [23. Authentication Testing Guide](23_Auth_Testing_Guide.md)
