@@ -46,33 +46,35 @@ Ap dung chuan **Verified State Machine** cho cac feature quan trong (auth, sync,
   - AC gap tests (expected fail hoac pending)
 
 ### Mermaid convention
-Dung `stateDiagram-v2` va annotate contracts ngay tren transition.
-
-**Mac dinh dung `TD` (Transition Details) cho moi transition** de tranh loi parser va de doc:
-- `TD` la 1 dong text gom: `IN`, `OUT`, `GUARD`, `SE`
-- Tranh dung `{}`, `:`, hoac ky tu dac biet trong label transition.
+Dung `stateDiagram-v2` de mo ta flow va state transitions.  
+**Transition label chi nen giu action ngan** (vi du `submit()`, `uploadSnapshot()`), khong nhoi contracts vao label.
 
 ### GitHub Mermaid label wrapping (canh cat do do)
 Mermaid tren GitHub thuong **khong tu wrap** va se **cat/bi mat label** khi do dai label qua dai.
 - Nguong thuc te: khoang **20-25 ky tu** bat dau bi cat.
-- Cach lam (rat quan trong):
-  1) **Rut ngan node label** xuong **<20-25 ky tu tren moi dong**.
-  2) Neu can nhieu y, **tu them `\\n`** trong label de tao dong moi (vi du: `"[Line1\\nLine2]"`).
-  3) Khong can tu dem tay; chi can lam label ngan, ro, va split thanh 2-3 dong bang `\\n`.
-  
-Gioi han nay ap dung cho:
-- `flowchart TD/LR` node text: text trong `[...]`
-- `stateDiagram-v2` transition nhan sau `:` va/hoac text label trong node.
+- Voi `stateDiagram-v2`, transition label de bi cat hon flowchart; `\n` thuong khong giai quyet on dinh.
+- Cach dung:
+  1) Transition label chi giu action ngan.
+  2) Contracts (`IN/OUT/GUARD/SE`) dua xuong bang Markdown ngay ben duoi diagram.
+  3) Neu la flowchart node text dai, rut ngan va them `\\n` thu cong.
 
 ```mermaid
 stateDiagram-v2
     [*] --> Idle
-    Idle --> Loading: submit()\n[TD IN LoginInput | OUT LoadingState | GUARD email_valid | SE POST auth_login]
-    Loading --> Authenticated: onSuccess()\n[TD IN AuthResponse | OUT AuthSession | SE session_write]
-    Loading --> Error: onFail()\n[TD OUT AuthError]
-    Error --> Idle: retry()\n[TD GUARD retryCount_lt_3]
-    Error --> Locked: retry()\n[TD GUARD retryCount_gte_3 | SE lock_5m]
+    Idle --> Loading: submit()
+    Loading --> Authenticated: onSuccess()
+    Loading --> Error: onFail()
+    Error --> Idle: retry()
+    Error --> Locked: lock()
 ```
+
+| Transition | IN | OUT | GUARD | SE |
+|---|---|---|---|---|
+| submit() | LoginInput | LoadingState | email_valid | POST auth_login |
+| onSuccess() | AuthResponse | AuthSession | - | session_write |
+| onFail() | - | AuthError | - | - |
+| retry() | retryCount | IdleState | retryCount_lt_3 | - |
+| lock() | retryCount | LockedState | retryCount_gte_3 | lock_5m |
 
 ### Mermaid vs SVG convention
 - **Mac dinh dung Mermaid** lam source-of-truth de Agent va dev tools doc/phan tich duoc.
@@ -119,7 +121,8 @@ Moi tai lieu state machine cho feature can co 4 phan:
 - AC2...
 
 2. **Verified State Machine (Mermaid)**
-- Co contracts tren transition (IN/OUT/GUARD/SE)
+- Transition label ngan, tap trung vao action/flow
+- Contracts nam trong bang Markdown ngay duoi diagram (IN/OUT/GUARD/SE)
 
 3. **Gap Analysis**
 - AC covered
@@ -139,8 +142,9 @@ Day la code component/service [paste].
 Day la acceptance criteria [paste].
 
 Hay tao Verified State Machine voi:
-1) Mermaid stateDiagram-v2
-2) Moi transition phai co:
+1) Mermaid stateDiagram-v2 (transition label ngan, chi action)
+2) Bang contracts ngay duoi diagram, gom cot:
+   - Transition
    - Input schema
    - Output schema
    - Guard condition

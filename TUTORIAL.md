@@ -169,27 +169,39 @@ flowchart TD
 ```mermaid
 stateDiagram-v2
     [*] --> ProvisionedByHub
-    ProvisionedByHub --> InstalledAtStation: installEdge()\n[TD IN installer_package inviteCode | OUT station_runtime_ready | GUARD package_valid | SE install_and_boot]
-    InstalledAtStation --> GatewayReady: completeGatewaySetup()\n[TD IN inviteCode setupMode pin6 | OUT stationConfig authReady | GUARD invite_and_pin_valid | SE store_credentials_and_pin]
-    GatewayReady --> DailyOps: startDailyOps()\n[TD OUT activeSession]
-    DailyOps --> ClinicalDataReady: runIntakeQueueClinical()\n[TD IN patientEvents observations delayedResults | OUT localClinicalDataset | SE write_station_sqlite]
-    ClinicalDataReady --> SnapshotReady: createSnapshot()\n[TD IN stationDbPath encryptionKeyRef | OUT snapshotFile checksum | GUARD db_readable | SE encrypt_sqlite_to_db_enc]
-    SnapshotReady --> SnapshotPublished: uploadSnapshot()\n[TD IN snapshotFile repoUrl patRef | OUT releaseTag assetUrl | GUARD github_auth_success | SE upload_to_github_releases]
-    SnapshotPublished --> HubIngested: hubDownload()\n[TD IN releaseTag stationRepoList | OUT snapshotBundle | SE hub_cli_download]
-    HubIngested --> HubValidated: decryptAndValidate()\n[TD IN snapshotBundle hubKeyRef | OUT decryptedDbSet qualityFlags | GUARD checksum_valid | SE decrypt_db_enc]
-    HubValidated --> HubAggregated: aggregateDuckDB()\n[TD IN decryptedDbSet | OUT aggregateTables aggregateMetrics | SE duckdb_queries]
-    HubAggregated --> ReportsGenerated: generateReports()\n[TD OUT provincialReports]
+    ProvisionedByHub --> InstalledAtStation: installEdge()
+    InstalledAtStation --> GatewayReady: completeGatewaySetup()
+    GatewayReady --> DailyOps: startDailyOps()
+    DailyOps --> ClinicalDataReady: runIntakeQueueClinical()
+    ClinicalDataReady --> SnapshotReady: createSnapshot()
+    SnapshotReady --> SnapshotPublished: uploadSnapshot()
+    SnapshotPublished --> HubIngested: hubDownload()
+    HubIngested --> HubValidated: decryptAndValidate()
+    HubValidated --> HubAggregated: aggregateDuckDB()
+    HubAggregated --> ReportsGenerated: generateReports()
     ReportsGenerated --> [*]
 ```
 
+| Transition | IN | OUT | GUARD | SE |
+|---|---|---|---|---|
+| installEdge() | installer_package, inviteCode | station_runtime_ready | package_valid | install_and_boot |
+| completeGatewaySetup() | inviteCode, setupMode, pin6 | stationConfig, authReady | invite_and_pin_valid | store_credentials_and_pin |
+| startDailyOps() | stationConfig | activeSession | authReady | open_sidebar_workflow |
+| runIntakeQueueClinical() | patientEvents, observations, delayedResults | localClinicalDataset | activeSession | write_station_sqlite |
+| createSnapshot() | stationDbPath, encryptionKeyRef | snapshotFile, checksum | db_readable | encrypt_sqlite_to_db_enc |
+| uploadSnapshot() | snapshotFile, repoUrl, patRef | releaseTag, assetUrl | github_auth_success | upload_to_github_releases |
+| hubDownload() | releaseTag, stationRepoList | snapshotBundle | release_exists | hub_cli_download |
+| decryptAndValidate() | snapshotBundle, hubKeyRef | decryptedDbSet, qualityFlags | checksum_valid | decrypt_db_enc |
+| aggregateDuckDB() | decryptedDbSet | aggregateTables, aggregateMetrics | decryptedDb_not_empty | duckdb_queries |
+| generateReports() | aggregateTables, aggregateMetrics | provincialReports | report_rules_valid | export_reports |
+
 **Chu thich ky hieu (Legend)**
-- `TD`: Transition Details (mo ta ky thuat cua moi mui ten chuyen trang thai).
 - `IN`: Du lieu dau vao can cho transition.
 - `OUT`: Du lieu dau ra/artefact tao ra sau transition.
 - `GUARD`: Dieu kien bat buoc de transition duoc phep xay ra.
 - `SE`: Side Effects (ghi DB, goi API, upload, decrypt, aggregate...).
 
-**Note ve Mermaid (GitHub render):** Mermaid tren GitHub thuong khong tu wrap va se cat label khi do dai; hay rut ngan node label va dung `\\n` de split dong (muc tieu <20-25 ky tu/line).
+**Note ve Mermaid (GitHub render):** `stateDiagram-v2` transition label de bi cat neu dai, vi vay giu label ngan (chi action) va dua contracts xuong bang Markdown ngay ben duoi diagram.
 
 ---
 
