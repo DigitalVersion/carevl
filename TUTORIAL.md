@@ -220,7 +220,7 @@ stateDiagram-v2
 - `GUARD`: điều kiện bắt buộc để transition được phép xảy ra.
 - `SE`: Side Effects (ghi DB, goi API, upload, decrypt, aggregate...).
 
-**Note về Mermaid (GitHub render):** `stateDiagram-v2` transition label dễ bị cắt nếu dài, vì vậy giữ label ngắn (chỉ action) và đưa contracts xuống bảng Markdown ngay bên dưới diagram.
+**Note về Mermaid (GitHub render):** áp dụng quy tắc dự án: cứ quá **21 ký tự** trên label thì chủ động xuống dòng thủ công (với flowchart), ưu tiên `A["Line 1<br/>Line 2"]` hoặc markdown string. Riêng `stateDiagram-v2` giữ transition label ngắn (chỉ action) và đưa contracts xuống bảng Markdown ngay bên dưới diagram.
 
 ---
 

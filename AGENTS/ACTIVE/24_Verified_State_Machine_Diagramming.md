@@ -51,12 +51,20 @@ Dung `stateDiagram-v2` de mo ta flow va state transitions.
 
 ### GitHub Mermaid label wrapping (canh cat do do)
 Mermaid tren GitHub thuong **khong tu wrap** va se **cat/bi mat label** khi do dai label qua dai.
-- Nguong thuc te: khoang **20-25 ky tu** bat dau bi cat.
+- **Quy dinh mac dinh cua du an:** cu moi **21 ky tu** tren label thi xuong dong **thu cong**.
+- Nguong thuc te: khoang **20-25 ky tu** bat dau bi cat, nen chon 21 ky tu de an toan.
 - Voi `stateDiagram-v2`, transition label de bi cat hon flowchart; `\n` thuong khong giai quyet on dinh.
 - Cach dung:
   1) Transition label chi giu action ngan.
   2) Schema contracts va dataflow transactions dua xuong bang Markdown ngay ben duoi diagram.
-  3) Neu la flowchart node text dai, rut ngan va them `\\n` thu cong.
+  3) Neu la flowchart node text dai, rut ngan va xuong dong thu cong theo quy tac 21 ky tu:
+     - Uu tien: `A["Line 1<br/>Line 2"]`
+     - Hoac markdown string:
+       ```mermaid
+       A["`Line 1
+       Line 2`"]
+       ```
+     - Khong uu tien `\n` cho label flowchart vi render khong on dinh tren GitHub.
 
 ```mermaid
 stateDiagram-v2
