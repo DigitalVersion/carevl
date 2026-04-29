@@ -59,11 +59,7 @@ Mermaid tren GitHub thuong **khong tu wrap** va se **cat/bi mat label** khi do d
   2) Schema contracts va dataflow transactions dua xuong bang Markdown ngay ben duoi diagram.
   3) Neu la flowchart node text dai, rut ngan va xuong dong thu cong theo quy tac 21 ky tu:
      - Uu tien: `A["Line 1<br/>Line 2"]`
-     - Hoac markdown string:
-       ```mermaid
-       A["`Line 1
-       Line 2`"]
-       ```
+     - Khong dung markdown string trong label flowchart vi de loi parser tren GitHub.
      - Khong uu tien `\n` cho label flowchart vi render khong on dinh tren GitHub.
 
 ```mermaid

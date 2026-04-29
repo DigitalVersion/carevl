@@ -10,6 +10,8 @@ Tài liệu này hướng dẫn chi tiết quy trình cài đặt và sử dụn
 
 CareVL được thiết kế theo mô hình **Two-App Architecture**:
 
+> Xem tất cả sơ đồ kỹ thuật tại: [Diagram Hub: State Machine & Dataflow Index](AGENTS/ACTIVE/25_Diagram_Hub.md)
+
 ### Thuật ngữ chuẩn dùng trong tất cả sơ đồ
 - **Hub Admin**: quản trị viên cấp tỉnh, chuẩn bị repo/PAT/invite code.
 - **Station**: trạm sử dụng Edge App (máy tại trạm).

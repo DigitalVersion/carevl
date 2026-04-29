@@ -77,6 +77,7 @@ O buoc finalize, truoc `submit`, agent phai lam:
 
 ## SOP & Resources
 - [Cam nang Thiet ke Hinh anh (Image Generation Bible)](AGENTS/IMAGE_GUIDE.md)
+- [Diagram Hub: State Machine & Dataflow Index](AGENTS/ACTIVE/25_Diagram_Hub.md)
 
 ## START HERE - DIAGRAMS & STATE MACHINES
 - [25. Diagram Hub: State Machine & Dataflow Index](AGENTS/ACTIVE/25_Diagram_Hub.md)
