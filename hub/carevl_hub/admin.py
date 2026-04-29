@@ -17,35 +17,30 @@ def encode_invite_code(
     station_id: str,
     station_name: str,
     repo_url: str,
-    pat: str,
-    encryption_key: Optional[str] = None
+    pat: Optional[str] = None,
+    encryption_key: Optional[str] = None,
+    ssh_private_key: Optional[str] = None,
 ) -> str:
     """
-    Encode station data into invite code
-    
-    Args:
-        station_id: Unique station identifier (e.g., TRAM_001)
-        station_name: Display name (e.g., Trạm Y Tế Xã A)
-        repo_url: GitHub repository URL
-        pat: GitHub Personal Access Token (fine-grained)
-        encryption_key: Optional encryption key for snapshots
-    
-    Returns:
-        Base64 encoded invite code
+    Encode station data into invite code.
+
+    Provide either pat (Classic PAT) or ssh_private_key (deploy key).
     """
     data = {
         "station_id": station_id,
         "station_name": station_name,
         "repo_url": repo_url,
-        "pat": pat
     }
-    
+
+    if pat:
+        data["pat"] = pat
+    if ssh_private_key:
+        data["ssh_private_key"] = ssh_private_key
     if encryption_key:
         data["encryption_key"] = encryption_key
-    
+
     json_str = json.dumps(data, ensure_ascii=False)
     encoded = base64.urlsafe_b64encode(json_str.encode('utf-8')).decode('utf-8')
-    
     return encoded
 
 

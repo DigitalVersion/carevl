@@ -15,8 +15,67 @@ Can mot file mo len la thay **tat ca so do dang SVG** trong `AGENTS/ASSETS/` va 
 - Phan **Mermaid**: nhung truc tiep trong file nay + bang `Schema Contracts` + `Dataflow Transactions` (mau chuan verified).
 - Chi tiet quy uoc ve Mermaid / GitHub render: [24. Verified State Machine Diagramming](24_Verified_State_Machine_Diagramming.md).
 
-## Rationale
-Tach ro: catalog ky thuat (vector + mermaid) vs huong dan nguoi dung (screenshot).
+---
+
+## 3 Cấp độ Visualization — Chọn theo mức độ tự tin
+
+Khi cần vẽ sơ đồ, chọn cấp độ phù hợp với **mức độ chắc chắn của thiết kế**:
+
+| Level | Kỹ thuật | Dùng khi nào | Dễ sửa? | Đẹp? |
+|-------|----------|--------------|---------|------|
+| **1 — ASCII art** | Ký tự text thuần (`┌─┐`, `↓`, `→`) | Ý tưởng ban đầu, đang thảo luận, chưa chắc | ✅✅✅ Rất dễ | ⭐ |
+| **2 — Mermaid** | Code diagram trong markdown | Thiết kế tương đối ổn định, cần share/review | ✅✅ Dễ | ⭐⭐⭐ |
+| **3 — SVG** | File vector trong `AGENTS/ASSETS/` | Thiết kế đã confirmed, dùng lâu dài | ❌ Khó | ⭐⭐⭐⭐⭐ |
+
+### Khi nào dùng Level nào?
+
+**Level 1 — ASCII art**
+- Đang brainstorm, chưa biết luồng có đúng không
+- Thảo luận nhanh trong chat / doc tạm
+- Sẽ thay đổi nhiều lần
+- Ví dụ: `AGENTS/ACTIVE/30_Hub_Auto_Provisioning.md`
+
+```
+┌──────────────┐
+│  Admin GUI   │
+└──────┬───────┘
+       ↓
+┌──────────────┐
+│  GitHub API  │
+└──────────────┘
+```
+
+**Level 2 — Mermaid**
+- Thiết kế đã thống nhất, cần render đẹp
+- Cần share với team hoặc review
+- Có thể còn thay đổi nhỏ (sửa code text dễ hơn SVG)
+- Ví dụ: state machine trong `26_Visualization.md`
+
+```mermaid
+stateDiagram-v2
+    [*] --> Idle
+    Idle --> Running: start()
+    Running --> Done: finish()
+```
+
+**Level 3 — SVG**
+- Thiết kế đã confirmed, stable
+- Dùng trong tài liệu chính thức, README, tutorial
+- Ít thay đổi — sửa SVG tốn công nhất
+- Ví dụ: `AGENTS/ASSETS/edge_app_architecture.svg`
+
+### Quy tắc nâng cấp
+
+```
+ASCII art  →  Mermaid  →  SVG
+(draft)       (review)    (confirmed)
+```
+
+- Không cần nâng cấp nếu thiết kế chưa ổn định
+- Nâng cấp khi: thiết kế confirmed + cần dùng lâu dài
+- **Không xóa ASCII art** khi nâng cấp — giữ trong doc gốc để biết lịch sử
+
+---
 
 ## Related Documents
 - [24. Verified State Machine Diagramming](24_Verified_State_Machine_Diagramming.md)
@@ -53,6 +112,14 @@ Tach ro: catalog ky thuat (vector + mermaid) vs huong dan nguoi dung (screenshot
 | Hub Reports | Bao cao tinh |
 
 **Ghi chu GUI:** So do SVG da ghi chu "planned Streamlit"; khi implement xong, cap nhat hinh va bang tren cho khoi Planned.
+
+### `hub_operator_config_fields.svg`
+![Hub operator — nguon gia tri cac o cau hinh GUI](../ASSETS/hub_operator_config_fields.svg)
+
+| Muc | Mo ta ngan |
+|---|---|
+| Tab Streamlit **1 - Cau hinh** | Nguon: GitHub (PAT + org slug), may Hub (OUTPUT_DIR), Edge / invite (ENCRYPTION_KEY) |
+| Hien thi trong app | `carevl-hub gui` doc file trong `carevl_hub/gui/assets/` (ban trung `AGENTS/ASSETS`) |
 
 ---
 

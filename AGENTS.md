@@ -118,6 +118,7 @@ Quyet dinh dang song cua he thong.
 - [27. Phạm vi thu thập dữ liệu nghiệp vụ (người trước, kỹ thuật sau)](AGENTS/ACTIVE/27_Business_Data_Intake_Scope.md)
 - [28. Edge: Phạm vi Cài đặt trạm sau provision (`/settings`)](AGENTS/ACTIVE/28_Edge_Station_Settings_Scope.md)
 - [29. Hub Operator GUI (Streamlit)](AGENTS/ACTIVE/29_Hub_Operator_Gui_Streamlit.md)
+- [30. Hub Auto-Provisioning: Device Flow + Classic PAT](AGENTS/ACTIVE/30_Hub_Auto_Provisioning.md)
 
 ---
 

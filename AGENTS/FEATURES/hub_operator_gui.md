@@ -1,34 +1,113 @@
 # Feature: Hub Operator GUI (Streamlit)
 
 ## Status
-[Active - Partial]
+[Active - Implemented]
 
-- UI: **MVP** — 3 tab Streamlit (`carevl_hub/gui/app.py`): cau hinh session, checklist, health
-- Backend (wrapper goi pipeline): **chua** (nut download la placeholder)
-- Van hanh: chay `uv run carevl-hub gui` tu thu muc `hub/` (mac dinh `127.0.0.1:8501`)
+**Implemented:**
+- ✅ `gui/app.py` — entry point, ~35 dòng
+- ✅ `gui/session.py` — session state, local file persistence, mask_secret
+- ✅ `gui/tab_invite.py` — Tab 1: tạo trạm tự động (Admin PAT + deploy key)
+- ✅ `gui/tab_config.py` — Tab 2: Cấu hình tải dữ liệu (lưu Admin PAT)
+- ✅ `gui/tab_health.py` — Tab 3: Health
+- ✅ `github_api.py` — tạo repo, sinh SSH key pair, gắn deploy key
 
-## Context
+**Cần hoàn thiện:**
+- 🚧 Test E2E với bot account thật
+- 🚧 Cập nhật tests Edge cho SSH flow
 
-Admin tinh can giao dien de van hanh Hub (tai snapshot, xem tien trinh, mo ta bao cao) ma khong phu thuoc hoan toan vao terminal. CLI `carevl-hub` van la nguon that cho automation.
+---
 
-## Decision
+## Mở GUI
 
-- Dung **Streamlit** theo [29. Hub Operator GUI (Streamlit)](../ACTIVE/29_Hub_Operator_Gui_Streamlit.md).
-- Entry: `uv run carevl-hub gui` (sau khi implement).
-- Pham vi MVP: cau hinh (PAT masked), checklist, placeholder chay pipeline.
+```bash
+# Double-click:
+scripts/run-hub-gui-dev.bat
 
-## Rationale
+# Hoặc terminal:
+cd hub
+uv run carevl-hub gui
+# → http://127.0.0.1:8501
+```
 
-Khop ADR 29; feature ledger de sync code — khi merge GUI, cap nhat Status va endpoint/lenh o day.
+---
 
-## Related Endpoints / Commands
+## Cấu trúc module
 
-- `carevl-hub gui [--port 8501] [--host 127.0.0.1]`
-- `carevl-hub admin …` (invite / checklist)
+```
+hub/carevl_hub/
+├── github_api.py       ← tạo repo, sinh SSH key, gắn deploy key
+├── admin.py            ← encode_invite_code() (hỗ trợ ssh_private_key)
+└── gui/
+    ├── app.py          ← entry point, main() + tabs
+    ├── session.py      ← session state, local file, mask_secret
+    ├── tab_invite.py   ← Tab 1: tạo trạm tự động
+    ├── tab_config.py   ← Tab 2: cấu hình (Admin PAT lưu ở đây)
+    └── tab_health.py   ← Tab 3: health check
+```
+
+---
+
+## Các tab
+
+| Tab | File | Mục đích | Dùng khi nào |
+|-----|------|----------|--------------|
+| **🎫 Tạo mã kích hoạt** | `tab_invite.py` | Tạo repo + deploy key + invite code | **DÙNG ĐẦU TIÊN** |
+| **📊 Cấu hình tải dữ liệu** | `tab_config.py` | Lưu Admin PAT, org, encryption key | Lần đầu setup + khi tải dữ liệu |
+| **🏥 Health** | `tab_health.py` | Version, CWD, session info | Debug |
+
+---
+
+## Quy trình sử dụng
+
+### Lần đầu tiên (setup 1 lần)
+
+1. Tạo **Classic PAT** trên GitHub: https://github.com/settings/tokens
+   - Chọn **"Generate new token (classic)"**
+   - Scope: **`repo`**
+2. Mở Hub GUI → Tab **"📊 Cấu hình tải dữ liệu"**
+3. Điền PAT → bấm **"💾 Lưu file"** (để không phải nhập lại)
+
+### Mỗi lần tạo trạm mới (< 1 phút)
+
+1. Tab **"🎫 Tạo mã kích hoạt"**
+2. Thấy `✅ Dùng PAT của: <username>` → điền form:
+   - **Station ID**: `TRAM_001`
+   - **Tên trạm**: `Trạm Y Tế Xã A`
+   - **Encryption Key**: tùy chọn
+3. Bấm **"🚀 Tạo trạm"** → tự động:
+   - Tạo private repo
+   - Sinh SSH deploy key
+   - Generate invite code
+4. Copy mã → gửi Zalo/Email cho trạm
+
+### Trạm Edge nhận mã
+
+Trạm tự làm: mở Edge app → `/provision/` → dán mã → New/Restore → PIN → xong.
+
+---
+
+## FAQ
+
+**Q: Lần đầu mở GUI làm gì?**
+→ Tab Cấu hình → điền Classic PAT → lưu file → sang Tab Tạo mã
+
+**Q: Classic PAT tạo ở đâu?**
+→ https://github.com/settings/tokens → "Generate new token (classic)" → scope `repo`
+
+**Q: 10 trạm phải tạo 10 lần?**
+→ PAT nhập 1 lần, mỗi trạm: điền form → bấm nút → xong (< 1 phút/trạm)
+
+**Q: Deploy key khác PAT thế nào?**
+→ Deploy key chỉ có quyền trên 1 repo cụ thể, an toàn hơn PAT. Tạo tự động, không cần làm thủ công.
+
+**Q: Encryption key lấy ở đâu (Tab 2)?**
+→ Chính là key đã điền ở Tab 1 khi tạo invite code. Phải trùng y chang.
+
+---
 
 ## Related Documents
 
+- [30. Hub Auto-Provisioning: Admin PAT + Deploy Key](../ACTIVE/30_Hub_Auto_Provisioning.md)
+- [17. Invite Code Authentication](../ACTIVE/17_Invite_Code_Authentication.md)
 - [29. Hub Operator GUI (Streamlit)](../ACTIVE/29_Hub_Operator_Gui_Streamlit.md)
-- [18. Two-App Architecture](../ACTIVE/18_Two_App_Architecture.md)
-- [7. Xuat du lieu Hub](7_xuat_du_lieu_hub.md) (canh Edge)
-- [26. Visualization Catalog](../ACTIVE/26_Visualization.md)
+- [08. Hướng dẫn Admin](../ACTIVE/08_Huong_Dan_Admin.md)

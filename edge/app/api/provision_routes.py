@@ -35,7 +35,11 @@ def _pin_must_be_digits(pin: str) -> None:
 @router.get("/", response_class=HTMLResponse)
 async def provision_page(request: Request):
     """First-time station setup (invite code)."""
-    return templates.TemplateResponse("provision/index.html", {"request": request})
+    return templates.TemplateResponse(
+        request=request,
+        name="provision/index.html",
+        context={"request": request},
+    )
 
 
 @router.post("/validate-code")
@@ -76,21 +80,33 @@ async def setup_new_station(
     if not GitOperations.check_git_installed():
         raise HTTPException(status_code=500, detail="Git is not installed. Please install Git first.")
 
-    if not CredentialManager.save_pat(data.station_id, data.pat):
-        raise HTTPException(status_code=500, detail="Failed to save PAT to Credential Manager")
+    # Lưu credential (SSH key hoặc PAT)
+    if data.auth_type == "ssh":
+        if not CredentialManager.save_pat(data.station_id, data.ssh_private_key):
+            raise HTTPException(status_code=500, detail="Failed to save SSH key to Credential Manager")
+    else:
+        if not CredentialManager.save_pat(data.station_id, data.pat):
+            raise HTTPException(status_code=500, detail="Failed to save PAT to Credential Manager")
 
     if data.encryption_key:
         if not CredentialManager.save_encryption_key(data.station_id, data.encryption_key):
             raise HTTPException(status_code=500, detail="Failed to save encryption key")
 
     repo_dir = _repo_dir_for_station(data.station_id)
-    success, message = GitOperations.clone_or_pull(data.repo_url, data.pat, repo_dir)
+    success, message = GitOperations.clone_or_pull(
+        data.repo_url,
+        repo_dir,
+        pat=data.pat if data.auth_type == "pat" else None,
+        ssh_private_key=data.ssh_private_key if data.auth_type == "ssh" else None,
+    )
     if not success:
         raise HTTPException(status_code=500, detail=message)
 
     Base.metadata.create_all(bind=engine)
     save_station_identity(db, data.station_id, data.station_name, data.repo_url)
-    save_pin_with_secret(db, pin, data.pat)
+    # Lưu credential vào pin vault (dùng để push sau này)
+    credential = data.ssh_private_key if data.auth_type == "ssh" else data.pat
+    save_pin_with_secret(db, pin, credential)
     db.commit()
 
     payload = {
@@ -102,6 +118,11 @@ async def setup_new_station(
     resp = JSONResponse(payload)
     attach_session_cookie(resp)
     return resp
+
+    Base.metadata.create_all(bind=engine)
+    save_station_identity(db, data.station_id, data.station_name, data.repo_url)
+    save_pin_with_secret(db, pin, data.pat)
+    db.commit()
 
 
 @router.post("/setup-restore")
@@ -132,14 +153,21 @@ async def setup_restore_station(
     if not GitOperations.check_git_installed():
         raise HTTPException(status_code=500, detail="Git is not installed. Please install Git first.")
 
-    if not CredentialManager.save_pat(data.station_id, data.pat):
-        raise HTTPException(status_code=500, detail="Failed to save PAT to Credential Manager")
+    # Lưu credential (SSH key hoặc PAT)
+    credential = data.ssh_private_key if data.auth_type == "ssh" else data.pat
+    if not CredentialManager.save_pat(data.station_id, credential):
+        raise HTTPException(status_code=500, detail="Failed to save credential to Credential Manager")
 
     if not CredentialManager.save_encryption_key(data.station_id, data.encryption_key):
         raise HTTPException(status_code=500, detail="Failed to save encryption key")
 
     repo_dir = _repo_dir_for_station(data.station_id)
-    success, message = GitOperations.clone_or_pull(data.repo_url, data.pat, repo_dir)
+    success, message = GitOperations.clone_or_pull(
+        data.repo_url,
+        repo_dir,
+        pat=data.pat if data.auth_type == "pat" else None,
+        ssh_private_key=data.ssh_private_key if data.auth_type == "ssh" else None,
+    )
     if not success:
         raise HTTPException(status_code=500, detail=message)
 
@@ -167,7 +195,7 @@ async def setup_restore_station(
                 pass
 
     save_station_identity(db, data.station_id, data.station_name, data.repo_url)
-    save_pin_with_secret(db, pin, data.pat)
+    save_pin_with_secret(db, pin, credential)
     db.commit()
 
     payload = {

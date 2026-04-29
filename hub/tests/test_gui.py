@@ -23,3 +23,17 @@ def test_gui_cli_help():
     r = runner.invoke(app, ["gui", "--help"])
     assert r.exit_code == 0
     assert "Streamlit" in r.stdout or "8501" in r.stdout
+
+
+def test_local_state_path_gitignored_filename():
+    from carevl_hub.gui import app as gui_app
+
+    assert gui_app._local_state_path().name == ".carevl_operator_local.json"
+
+
+def test_config_fields_diagram_svg_shipped():
+    from carevl_hub.gui import app as gui_app_mod
+
+    p = Path(gui_app_mod.__file__).resolve().parent / "assets" / "hub_operator_config_fields.svg"
+    assert p.is_file()
+    assert gui_app_mod._config_fields_diagram_path() is not None

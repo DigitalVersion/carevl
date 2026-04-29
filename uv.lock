@@ -181,6 +181,7 @@ dependencies = [
     { name = "pandas" },
     { name = "pydantic" },
     { name = "pydantic-settings" },
+    { name = "requests" },
     { name = "streamlit" },
     { name = "typer" },
 ]
@@ -202,6 +203,7 @@ requires-dist = [
     { name = "pydantic", specifier = ">=2.10.5" },
     { name = "pydantic-settings", specifier = ">=2.7.1" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.3.4" },
+    { name = "requests", specifier = ">=2.32.0" },
     { name = "streamlit", specifier = ">=1.41.1" },
     { name = "typer", specifier = ">=0.15.1" },
 ]

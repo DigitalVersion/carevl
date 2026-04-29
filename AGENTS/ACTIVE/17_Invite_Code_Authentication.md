@@ -3,10 +3,10 @@
 ## Status
 [Active - Implemented]
 
-Test Status: ✅ Fully tested (17/17 tests passing)
+Test Status: ✅ Fully tested (17/17 tests passing) — PAT flow
 - Unit tests: `edge/tests/test_auth_flow.py`
 - Manual demo: `edge/tests/manual_auth_test.py`
-- Test documentation: `edge/tests/README.md`
+- SSH deploy key flow: 🚧 tests cần cập nhật
 
 ## Context
 CareVL can cach xac thuc don gian cho tram:
@@ -64,24 +64,36 @@ Tram:
 ```
 
 ### Technical implementation
-Hub Admin:
-1. Tao bot GitHub account
-2. Tao repo bang script nhu `scripts/hub_setup_repos.py`
-3. Tao fine-grained PAT thu cong qua GitHub UI
-4. Luu PAT vao CSV
-5. Sinh invite code bang Base64 JSON tu `station_id`, `station_name`, `repo_url`, `pat`
 
-Tram:
-1. UI nhap invite code
-2. Backend decode Base64, parse JSON, validate key bat buoc
-3. Luu PAT vao Windows Credential Manager qua `keyring`
-4. Clone/push git voi PAT
+**Hub Admin (1 lần đầu):**
+1. Tạo bot GitHub account, bật 2FA
+2. Tạo Classic PAT (scope: `repo`) → lưu vào Hub GUI Tab Cấu hình
 
-Chi tiet quan trong:
-- Fine-grained PAT khong tao qua API; phai tao thu cong
-- `Contents: write` bao gom git operations va release asset upload
-- PAT luu secure trong Windows Credential Manager
-- Git URL co the inject PAT de clone; push dung credential helper/env bien
+**Hub Admin (mỗi trạm):**
+1. Tab "🎫 Tạo mã kích hoạt" → điền Station ID + Tên trạm
+2. Bấm "🚀 Tạo trạm" → GUI tự động:
+   - Tạo private repo (`github_api.py → create_repo()`)
+   - Sinh Ed25519 SSH key pair in RAM (`generate_ssh_keypair()`)
+   - Gắn public key làm deploy key vào repo (`create_deploy_key()`)
+   - Encode invite code chứa `ssh_private_key` (`admin.py → encode_invite_code()`)
+3. Copy invite code → gửi trạm qua Zalo/Email
+
+**Trạm Edge:**
+1. Dán invite code → `InviteCodeData` parse JSON
+2. `auth_type = "ssh"` nếu có `ssh_private_key`, `"pat"` nếu có `pat`
+3. Lưu credential vào Windows Credential Manager
+4. `git_operations.py` clone/push:
+   - SSH: viết key ra temp file → `GIT_SSH_COMMAND` → xóa temp file
+   - PAT: inject vào HTTPS URL (backward compatible)
+5. Setup PIN
+
+**Chi tiết quan trọng:**
+- Deploy key tạo được qua API (khác PAT), chỉ có quyền trên 1 repo
+- SSH private key lưu secure trong Windows Credential Manager
+- Invite code cũ (có `pat`) vẫn hoạt động — backward compatible
+- Temp SSH key file tự xóa sau khi dùng (`missing_ok=True`)
+- **Windows:** ghi key file với `newline="\n"` (LF, không CRLF) — OpenSSH từ chối CRLF
+- **Windows:** dùng `icacls` thay `chmod` để set permission — OpenSSH từ chối key nếu file có quyền quá rộng
 
 ### Security analysis
 Threat chinh va giam thieu:

@@ -96,6 +96,19 @@ stateDiagram-v2
   3) Export SVG vao `AGENTS/ASSETS/`
   4) Link SVG trong tai lieu lien quan
 
+**3 cap do visualization — chon theo muc do tu tin vao thiet ke:**
+
+| Level | Ky thuat | Dung khi nao | De sua? |
+|-------|----------|--------------|---------|
+| **1 — ASCII art** | Ky tu text thuan (`┌─┐`, `↓`) | Brainstorm, chua chac, dang thao luan | ✅✅✅ |
+| **2 — Mermaid** | Code diagram trong markdown | Thiet ke on dinh, can review/share | ✅✅ |
+| **3 — SVG** | File vector trong `AGENTS/ASSETS/` | Confirmed, dung lau dai | ❌ |
+
+Quy tac nang cap: `ASCII art → Mermaid → SVG` theo muc do chac chan.
+- Khong can nang cap neu thiet ke chua on dinh.
+- Khong xoa ASCII art khi nang cap — giu trong doc goc de biet lich su.
+- Chi tiet: [26. Visualization Catalog](26_Visualization.md)
+
 ### Contract schema format
 Schema co the dung JSON Schema, Pydantic model, hoac TypeScript type. Toi thieu can chot:
 - Truong bat buoc

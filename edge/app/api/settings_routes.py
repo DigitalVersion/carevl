@@ -86,8 +86,9 @@ def settings_unlock_page(request: Request, db: Session = Depends(get_db)):
         return RedirectResponse("/settings", status_code=303)
     err = request.query_params.get("err")
     return templates.TemplateResponse(
-        "settings/unlock.html",
-        {
+        request=request,
+        name="settings/unlock.html",
+        context={
             "request": request,
             "hide_sidebar": True,
             "error": _err_label(err),
@@ -127,8 +128,9 @@ def settings_page(request: Request, db: Session = Depends(get_db)):
     profile = load_profile(db)
     env_vals = read_env_keys(resolve_env_path(), ALLOWED_KEYS)
     return templates.TemplateResponse(
-        "settings/index.html",
-        {
+        request=request,
+        name="settings/index.html",
+        context={
             "request": request,
             "profile": profile,
             "env_vals": env_vals,

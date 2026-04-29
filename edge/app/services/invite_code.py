@@ -11,8 +11,18 @@ class InviteCodeData(BaseModel):
     station_id: str = Field(..., min_length=1, max_length=100)
     station_name: str = Field(..., min_length=1, max_length=255)
     repo_url: str = Field(..., pattern=r"^https://github\.com/.+/.+$")
-    pat: str = Field(..., min_length=10)
+    pat: Optional[str] = Field(None, min_length=10)          # Classic PAT (legacy)
+    ssh_private_key: Optional[str] = None                    # SSH deploy key (phương án A)
     encryption_key: Optional[str] = None
+
+    @property
+    def auth_type(self) -> str:
+        """Returns 'ssh' if deploy key present, else 'pat'."""
+        return "ssh" if self.ssh_private_key else "pat"
+
+    def model_post_init(self, __context: Any) -> None:
+        if not self.pat and not self.ssh_private_key:
+            raise ValueError("Invite code must contain either 'pat' or 'ssh_private_key'")
 
 
 class InviteCodeService:

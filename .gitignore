@@ -76,3 +76,5 @@ Thumbs.db
 .coverage
 htmlcov/
 .env
+# Hub Streamlit operator — optional local secrets (never commit)
+.carevl_operator_local.json

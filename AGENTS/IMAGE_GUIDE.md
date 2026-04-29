@@ -19,6 +19,16 @@ Tài liệu này quy định cách thức tạo và lưu trữ hình ảnh cho h
 
 #### B. Diagram kỹ thuật (Sơ đồ kiến trúc, state machine, flowchart)
 - **Catalog so do ky thuat (SVG + Mermaid, khong mockup PNG):** [26. Visualization Catalog](ACTIVE/26_Visualization.md)
+- **3 cap do — chon theo muc do tu tin vao thiet ke:**
+
+  | Level | Ky thuat | Dung khi nao | De sua? |
+  |-------|----------|--------------|---------|
+  | **1 — ASCII art** | Ky tu text thuan | Brainstorm, chua chac, dang thao luan | ✅✅✅ |
+  | **2 — Mermaid** | Code diagram trong markdown | Thiet ke on dinh, can review/share | ✅✅ |
+  | **3 — SVG** | File vector trong `AGENTS/ASSETS/` | Confirmed, dung lau dai | ❌ |
+
+  Quy tac nang cap: `ASCII art → Mermaid → SVG`. Khong xoa ASCII art khi nang cap.
+
 - **Công cụ cho phép:** 
   - Mermaid (source-of-truth, ưu tiên)
   - SVG inline (artifact hoặc minh họa tĩnh)

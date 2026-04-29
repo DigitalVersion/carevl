@@ -27,7 +27,7 @@ MVP **ba tab** (cau hinh session / checklist / health) + lenh `carevl-hub gui` *
 ### 3. Bao mat va xac thuc GitHub
 
 - **Khong** lam OAuth GitHub / Device Flow trong browser cho Hub GUI (phuc tap, khong nam trong pham vi Edge Invite).
-- **PAT + org + encryption key:** nhap qua form Streamlit; **mac dinh** chi giu trong **session / RAM** (`st.session_state`). Neu can luu lai giua lan mo app: huong dan dung **`.streamlit/secrets.toml`** (hoac `.env` da co tren may Hub) — **khong** commit secrets vao git; ghi ro trong README/22 khi implement.
+- **PAT + org + encryption key:** nhap qua form Streamlit; **mac dinh** chi **session / RAM** (`st.session_state`). **Tuy chon GUI:** file `hub/.carevl_operator_local.json` (gitignored) — nut Ghi/Doc/Xoa trong tab Cau hinh; chi may Hub tin cay. Thay the khac: **`.streamlit/secrets.toml`** hoac `.env` tren may — **khong** commit secrets.
 
 ### 4. Trien khai mang
 
@@ -36,7 +36,7 @@ MVP **ba tab** (cau hinh session / checklist / health) + lenh `carevl-hub gui` *
 
 ### 5. Pham vi MVP (**da lam**)
 
-1. Tab **Cau hinh**: PAT / org / `OUTPUT_DIR` / encryption key — **session** + masked summary + xoa session.
+1. Tab **Cau hinh**: PAT / org / `OUTPUT_DIR` / encryption key — **session** + masked summary + xoa session + **ghi/doc file JSON cuc bo** (tuy chon).
 2. Tab **Tien trinh**: checklist (noi dung inline + huong noi pipeline); placeholder download (chua noi code).
 3. Tab **Health:** `carevl-hub` version, CWD, OUTPUT_DIR, masked session.
 
@@ -62,6 +62,6 @@ MVP **ba tab** (cau hinh session / checklist / health) + lenh `carevl-hub gui` *
 - [18. Two-App Architecture: Edge vs Hub](18_Two_App_Architecture.md)
 - [15. Hub Aggregation: DuckDB Analytics Pipeline](15_Hub_Aggregation.md)
 - [22. Deployment Guide: Edge & Hub](22_Deployment_Guide.md)
-- [26. Visualization Catalog](26_Visualization.md) — `hub_app_architecture.svg`
+- [26. Visualization Catalog](26_Visualization.md) — `hub_app_architecture.svg`, `hub_operator_config_fields.svg` (nguon tung o cau hinh GUI)
 - [FEATURE: Hub Operator GUI](../FEATURES/hub_operator_gui.md)
 - [08. Huong dan Admin](08_Huong_Dan_Admin.md) — checklist van hanh Hub
