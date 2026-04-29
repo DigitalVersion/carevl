@@ -12,24 +12,23 @@ Sơ đồ dưới mô tả chuỗi từ cấp phép Hub → trạm → vận hà
 
 ---
 
-## Cài đặt Windows — một lệnh (chọn nhánh `main` hoặc `canary`)
+## Cài đặt "Một Dòng Lệnh" (Zero-Config) cho Windows
 
-Cùng một script cài đặt; chỉ **khác URL** theo nhánh Git bạn muốn dùng:
+Hệ thống cung cấp một script duy nhất để tự động cài đặt Git, cấu hình môi trường, tải mã nguồn, mở khóa tường lửa (Firewall) và tạo lối tắt (Shortcut) ra màn hình Desktop.
 
-| Nhánh | Khi nào dùng |
-|-------|----------------|
-| **`main`** | Bản **ổn định**, khuyên dùng cho vận hành hàng ngày tại trạm. |
-| **`canary`** | Bản **thử nghiệm** — tính năng Gateway, xác thực và bảo mật offline (PIN) mới hơn; có thể thay đổi nhanh. |
+**Yêu cầu:** hãy mở **PowerShell** bằng quyền **Quản trị viên** (*Run as Administrator*) và dán **một** trong hai dòng lệnh dưới đây tùy theo nhu cầu của trạm.
 
-**Yêu cầu:** mở **PowerShell** bằng quyền **Quản trị viên** (*Run as Administrator*), rồi dán **một** trong hai lệnh sau.
+### 1. Bản chính thức (ổn định — `main`, khuyên dùng)
 
-**Ổn định (`main`):**
+Dành cho công việc hàng ngày tại trạm. Đảm bảo tính ổn định cao nhất.
 
 ```powershell
 Set-ExecutionPolicy Bypass -Scope Process -Force; iwr -useb https://raw.githubusercontent.com/DigitalVersion/carevl/main/scripts/setup.ps1 | iex
 ```
 
-**Thử nghiệm (`canary`):**
+### 2. Bản thử nghiệm (`canary`)
+
+Dành cho các trạm muốn trải nghiệm hệ thống Gateway, xác thực và bảo mật offline (PIN 6 số) mới nhất.
 
 ```powershell
 Set-ExecutionPolicy Bypass -Scope Process -Force; iwr -useb https://raw.githubusercontent.com/DigitalVersion/carevl/canary/scripts/setup.ps1 | iex
